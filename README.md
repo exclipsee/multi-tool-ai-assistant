@@ -1,6 +1,3 @@
-Absolutely! Here’s the full text for your `README.md` ready to copy and paste:
-
----
 
 # Basic AI Assistant
 
@@ -69,8 +66,6 @@ OPENWEATHER_API_KEY=your_openweathermap_api_key
 OPENAI_API_KEY=your_openai_api_key
 ```
 
-> ⚠️ Never commit your `.env` file to GitHub. Use `.env.example` with placeholders instead.
-
 5. **Run the AI assistant**
 
 ```
@@ -102,19 +97,6 @@ Basic AI Agent/
 * [python-dotenv](https://pypi.org/project/python-dotenv/)
 * [psutil](https://pypi.org/project/psutil/)
 * [requests](https://pypi.org/project/requests/)
-
-Install all dependencies via:
-
-pip install -r requirements.txt
-
----
-
-## Future Improvements
-
-* Add more tools: Wikipedia search, currency converter, todo manager.
-* Add a web interface using Streamlit or Gradio.
-* Log past interactions for context-aware AI responses.
-* Customize AI personality with advanced prompts.
 
 ---
 
