@@ -11,6 +11,10 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 from langchain.tools import tool
 from langgraph.prebuilt import create_react_agent
+from deep_translator import DeeplTranslator
+from rich.live import Live
+from rich.table import Table
+import time
 
 # =========================================================
 # 🌟 CONFIGURATION
@@ -34,7 +38,7 @@ def save_json(file, data):
     with open(file, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
 
-memory = load_json(MEMORY_FILE, {"notes": [], "knowledge": []})
+memory = load_json(MEMORY_FILE, {"notes": [], "knowledge": [], "reminders": []})
 log = load_json(LOG_FILE, [])
 
 def add_note(content):
@@ -151,16 +155,70 @@ def recall_notes() -> str:
     return "\n".join([f"- {n['note']} (saved {n['timestamp']})" for n in memory["notes"]])
 
 # =========================================================
+# 🆕 NEW TOOLS
+# =========================================================
+
+@tool
+def wiki_search(query: str) -> str:
+    """Search Wikipedia for a summary."""
+    try:
+        url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{query.replace(' ', '_')}"
+        data = requests.get(url).json()
+        if "title" not in data:
+            return "❌ No results found."
+        return f"📘 {data.get('title')}: {data.get('extract', 'No summary found.')}"
+    except Exception as e:
+        return f"❌ Error fetching Wikipedia info: {str(e)}"
+
+@tool
+def translate_text(text: str, target_lang: str = "EN") -> str:
+    """Translate text using DeepL (via deep_translator)."""
+    try:
+        translated = DeeplTranslator(target=target_lang).translate(text)
+        return f"🌍 Translation ({target_lang}): {translated}"
+    except Exception as e:
+        return f"❌ Translation error: {e}"
+
+@tool
+def system_monitor(duration: int = 10) -> str:
+    """Live system monitor showing CPU, RAM, and Disk usage."""
+    try:
+        with Live(refresh_per_second=1) as live:
+            for _ in range(duration):
+                table = Table(title="🖥️ System Monitor", style="bold cyan")
+                table.add_column("Metric", justify="left", style="yellow")
+                table.add_column("Value", justify="right", style="white")
+
+                cpu = psutil.cpu_percent(interval=0.5)
+                ram = psutil.virtual_memory()
+                disk = psutil.disk_usage("/")
+
+                table.add_row("CPU Usage", f"{cpu}%")
+                table.add_row("RAM Usage", f"{ram.percent}% ({ram.used / (1024**3):.1f} GB / {ram.total / (1024**3):.1f} GB)")
+                table.add_row("Disk Usage", f"{disk.percent}% ({disk.used / (1024**3):.1f} GB / {disk.total / (1024**3):.1f} GB)")
+
+                live.update(table)
+                time.sleep(1)
+        return "✅ Monitoring complete."
+    except KeyboardInterrupt:
+        return "🛑 Monitoring stopped by user."
+    except Exception as e:
+        return f"❌ Error in system monitor: {e}"
+
+# =========================================================
 # ⚙️ MAIN EXECUTION
 # =========================================================
 def main():
-    print(colored("🤖 Welcome to Intelli CLI 2.0 (Advanced)!", "cyan", attrs=["bold"]))
+    print(colored("🤖 Welcome to Intelli CLI 3.0 (Enhanced Edition)!", "cyan", attrs=["bold"]))
     print(colored("Type 'quit' to exit.", "yellow"))
-    print(colored("Try commands: Weather, News, Calculate, Joke, Note, SystemInfo", "yellow"))
+    print(colored("Try commands: Weather, News, Wiki, Translate, Monitor, Note, SystemInfo, Joke", "yellow"))
 
     model = ChatOpenAI(temperature=0.3)
-    tools = [get_weather, calculator, say_hello, system_info, get_time,
-             get_news, tell_joke, save_note, recall_notes]
+    tools = [
+        get_weather, calculator, say_hello, system_info, get_time,
+        get_news, tell_joke, save_note, recall_notes,
+        wiki_search, translate_text, system_monitor
+    ]
 
     agent_executor = create_react_agent(model, tools)
 
