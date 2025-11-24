@@ -1,0 +1,33 @@
+{
+  "levels": {
+    "A1": [
+      {
+        "title": "Greetings and Introductions",
+        "sentences": [
+          "Guten Morgen.",
+          "Ich heiße Anna.",
+          "Wie heißt du?",
+          "Ich komme aus Deutschland."
+        ]
+      },
+      {
+        "title": "Basic Nouns and Articles",
+        "sentences": [
+          "Das ist ein Haus.",
+          "Der Mann hat ein Auto.",
+          "Die Frau liest ein Buch."
+        ]
+      }
+    ],
+    "A2": [
+      {
+        "title": "Daily Activities",
+        "sentences": [
+          "Ich lerne Deutsch.",
+          "Am Morgen trinke ich Kaffee.",
+          "Am Wochenende gehe ich spazieren."
+        ]
+      }
+    ]
+  }
+}

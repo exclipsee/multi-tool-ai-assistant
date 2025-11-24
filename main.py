@@ -27,6 +27,12 @@ from langgraph.prebuilt import create_react_agent
 from deep_translator import DeeplTranslator
 from rich.live import Live
 from rich.table import Table
+# German assistant integration
+try:
+    from german_assistant import assess_sentence, generate_tasks
+except Exception:
+    assess_sentence = None
+    generate_tasks = None
 
 # Optional: better colors on Windows terminals
 try:
@@ -1035,6 +1041,31 @@ def main():
             return True
         if cmd == "/tools":
             print(", ".join(sorted([t.name for t in tools])))
+            return True
+        if cmd.startswith("/german"):
+            # Usage: /german <sentence>
+            parts = cmd.split(" ", 1)
+            if len(parts) == 1 or not parts[1].strip():
+                print(colored("Usage: /german <German sentence to assess>", "yellow"))
+                return True
+            if assess_sentence is None:
+                print(colored("german_assistant not available. Please add german_assistant.py.", "red"))
+                return True
+            sentence = parts[1].strip()
+            res = assess_sentence(sentence)
+            print(colored(f"Score: {res.get('score')}", "cyan"))
+            print(colored("Correction:", "yellow"))
+            print(res.get('correction'))
+            if res.get('explanations'):
+                print(colored("Explanations:", "yellow"))
+                for e in res.get('explanations'):
+                    print(f"- {e}")
+            # generate a couple of tasks
+            tasks = generate_tasks(sentence, num_tasks=2) if generate_tasks else []
+            if tasks:
+                print(colored("Suggested tasks:", "yellow"))
+                for t in tasks:
+                    print(f"- {t.get('type')}: {t.get('prompt')}")
             return True
         return None
 

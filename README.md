@@ -143,6 +143,51 @@ Do the same import adjustment as above based on file location.
 
 ---
 
+## 🇩🇪 German Tutor (new)
+
+This repository now includes a lightweight German learning assistant to help you practice and demonstrate your progress to potential employers.
+
+- Module: `german_assistant.py` — provides `assess_sentence(sentence, level)` and `generate_tasks(sentence, level, ...)`.
+- Sample lessons: `data/german_lessons.json` (A1/A2 examples) used by the Streamlit UI sidebar.
+- Streamlit UI: `app_streamlit.py` has a "German Tutor" mode in the sidebar for quick assessments and task generation.
+- CLI: use the `/german <sentence>` slash command inside the interactive CLI (`python main.py`) to get a score, suggested correction, explanations, and example exercises.
+
+Usage examples
+- Streamlit (choose "German Tutor" in sidebar):
+
+```powershell
+pip install streamlit
+streamlit run .\app_streamlit.py
+```
+
+- CLI example (run the interactive agent):
+
+```powershell
+python .\main.py
+# then at the prompt:
+/german ich habe ein haus
+```
+
+Sample output (CLI)
+
+```
+Score: 55
+Correction:
+Ich habe ein Haus.
+Explanations:
+- Sentence should end with a punctuation mark (., !, ?).
+- Sentence should start with a capital letter.
+- German nouns must be capitalized (Nomen werden großgeschrieben).
+Suggested tasks:
+- correction: Correct the sentence and explain your changes: ich habe ein haus
+- fill_blank: Fill in the blank: Ich habe ein _____
+```
+
+Why add this? — A note you can show employers
+
+This integration demonstrates that the project isn't just a collection of tools: it's a learning-focused workspace I actively use to improve my German. The German Tutor shows practical steps I take to practice (sentence correction, task generation, and structured lessons), and ties into the existing app so I can iterate on feedback and track progress.
+
+
 ## 💸 Costs & Privacy
 
 - OpenAI API is paid per token. Use models you have access to.

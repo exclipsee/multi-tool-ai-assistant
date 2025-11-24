@@ -2,6 +2,15 @@ import streamlit as st
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langgraph.prebuilt import create_react_agent
+import json
+from pathlib import Path
+
+# German tutor
+try:
+    from german_assistant import assess_sentence, generate_tasks
+except Exception:
+    assess_sentence = None
+    generate_tasks = None
 
 # Import your existing tools and config from main.py
 from main import (
@@ -19,6 +28,56 @@ from main import (
 
 st.set_page_config(page_title="Intelli CLI (UI)", page_icon="🤖", layout="centered")
 st.title("🤖 Intelli CLI (UI)")
+
+# Mode selector: keep existing chat but allow German Tutor mode
+mode = st.sidebar.selectbox("Mode", ["Chat", "German Tutor"], index=0)
+
+# If German tutor selected, render tutor UI and stop further chat rendering
+if mode == "German Tutor":
+    st.header("🇩🇪 German Tutor")
+    if assess_sentence is None:
+        st.error("`german_assistant` not available. Make sure the file exists and is importable.")
+        st.stop()
+
+    level = st.selectbox("Target level", ["A1", "A2", "B1", "B2"], index=0)
+    focus = st.multiselect("Focus", ["Grammar", "Vocabulary", "Speaking", "Writing"], default=["Grammar"])
+    sentence = st.text_area("Enter a German sentence to assess", value="Ich lerne Deutsch")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Assess sentence"):
+            res = assess_sentence(sentence, level=level)
+            st.subheader("Assessment")
+            st.write(f"Score: {res.get('score')}")
+            st.write("**Correction:**")
+            st.code(res.get('correction'))
+            if res.get('explanations'):
+                st.markdown("**Explanations:**")
+                for e in res.get('explanations'):
+                    st.write(f"- {e}")
+    with col2:
+        if st.button("Generate tasks"):
+            tasks = generate_tasks(sentence, level=level, num_tasks=4)
+            st.subheader("Tasks")
+            for t in tasks:
+                st.markdown(f"- **{t.get('type')}**: {t.get('prompt')}")
+
+    # Show sample lessons
+    lessons_path = Path(__file__).parent / "data" / "german_lessons.json"
+    if lessons_path.exists():
+        try:
+            data = json.loads(lessons_path.read_text(encoding="utf-8"))
+            st.sidebar.subheader("Sample lessons")
+            for lvl, lessons in data.get("levels", {}).items():
+                if lvl == level:
+                    for lesson in lessons:
+                        st.sidebar.markdown(f"**{lesson.get('title')}**")
+                        for s in lesson.get('sentences', [])[:3]:
+                            st.sidebar.write(s)
+        except Exception:
+            pass
+
+    st.stop()
 
 with st.sidebar:
     st.subheader("Controls")
