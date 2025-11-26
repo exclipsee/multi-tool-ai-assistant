@@ -14,8 +14,6 @@ Highlights
 - Clipboard, regex transforms, password generator
 - Caching, atomic saves, Windows‑safe disk info
 
-Note: Jokes tool was removed by request.
-
 ---
 
 ## 🧩 Tech Stack
@@ -35,76 +33,6 @@ APIs
 
 ---
 
-## 📦 Installation
-
-1) Create a virtual environment (Windows, PowerShell)
-```
-py -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-```
-
-2) Install dependencies
-```
-pip install -r .\requirements.txt
-```
-
-3) Optional features (install as needed)
-```
-pip install tzdata feedparser markdown pyperclip pdfminer.six "qrcode[pil]" mss beautifulsoup4
-```
-
----
-
-## 🔑 Configuration
-
-Create a .env in the repo root:
-```
-OPENAI_API_KEY=sk-...
-# Use a model your account has access to (example below)
-OPENAI_MODEL=gpt-4o-mini
-
-# Optional external APIs
-OPENWEATHER_API_KEY=your_openweather_key
-NEWS_API_KEY=your_newsapi_key
-
-# HTTP tuning (optional)
-HTTP_TIMEOUT=15
-HTTP_RETRIES=2
-```
-Tip: The code defaults OPENAI_MODEL to “gpt-5”. If your key doesn’t have that, set a valid model like gpt-4o or gpt-4o-mini.
-
----
-
-## ▶️ Run (CLI)
-
-From repo root:
-```
-python .\project1\main.py
-```
-
-Slash commands
-- /help – help and tool list
-- /clear – clear chat memory
-- /notes export – export notes to notes_export.md
-- /reminders – check due reminders now
-- /tools – show tool names
-
-Examples
-- “weather in Berlin”
-- “what’s the time in Tokyo” (uses get_time_in)
-- “convert 10 km to m”
-- “convert 100 USD to EUR”
-- “fetch https://example.com”
-- “rss https://hnrss.org/frontpage”
-- “add todo: ship the project in 2 days”
-- “set reminder: stretch in 20 min”
-- “csv_to_json data/users.csv”
-- “zip_paths [‘project1’, ‘requirements.txt’]”
-- “make_qr https://github.com/”
-
----
-
 ## 🧠 Major Capabilities (by category)
 
 - Info & Web: get_weather, get_news, wiki_search, search_web, fetch_url, fetch_rss
@@ -116,30 +44,6 @@ Examples
 - Media & Docs: pdf_to_text, md_to_html, make_qr, take_screenshot
 - Text Utils: summarize_text, slugify, regex_replace, password_generate, copy_to_clipboard, paste_from_clipboard
 - System: system_info, caching, atomic JSON saves, Windows‑safe disk detection
-
----
-
-## 🖥️ Optional Web UI
-
-Option A: Streamlit
-1) Place app_streamlit.py in the repo root or in project1.
-2) If it’s in the repo root, import from the subfolder:
-   - from project1.main import OPENAI_MODEL, ASSISTANT_SYSTEM_PROMPT, ...
-3) Run:
-```
-pip install streamlit
-streamlit run .\app_streamlit.py
-```
-Fix “Import 'main' could not be resolved”:
-- Ensure the import points to project1.main if your main.py is in project1.
-- Or move app_streamlit.py into project1 and use “from main import …”.
-
-Option B: Gradio
-```
-pip install gradio
-python .\app_gradio.py
-```
-Do the same import adjustment as above based on file location.
 
 ---
 
@@ -159,34 +63,6 @@ Usage examples
 pip install streamlit
 streamlit run .\app_streamlit.py
 ```
-
-- CLI example (run the interactive agent):
-
-```powershell
-python .\main.py
-# then at the prompt:
-/german ich habe ein haus
-```
-
-Sample output (CLI)
-
-```
-Score: 55
-Correction:
-Ich habe ein Haus.
-Explanations:
-- Sentence should end with a punctuation mark (., !, ?).
-- Sentence should start with a capital letter.
-- German nouns must be capitalized (Nomen werden großgeschrieben).
-Suggested tasks:
-- correction: Correct the sentence and explain your changes: ich habe ein haus
-- fill_blank: Fill in the blank: Ich habe ein _____
-```
-
-Why add this? — A note you can show employers
-
-This integration demonstrates that the project isn't just a collection of tools: it's a learning-focused workspace I actively use to improve my German. The German Tutor shows practical steps I take to practice (sentence correction, task generation, and structured lessons), and ties into the existing app so I can iterate on feedback and track progress.
-
 
 ## 💸 Costs & Privacy
 
