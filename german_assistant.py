@@ -6,8 +6,41 @@ This module is intentionally dependency-free and uses simple heuristics
 to provide quick feedback and exercises. It's a starting point you can
 expand with models or third-party NLP libraries later.
 """
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import random
+from pathlib import Path
+import json
+import datetime
+
+# memory file (store attempts/preferences)
+PROJECT_ROOT = Path(__file__).resolve().parent
+MEMORY_PATH = PROJECT_ROOT / "memory.json"
+PERSONA_PATH = PROJECT_ROOT / "german_persona.json"
+
+def _load_memory() -> Dict[str, Any]:
+    if MEMORY_PATH.exists():
+        try:
+            return json.loads(MEMORY_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+    return {}
+
+def _save_memory(data: Dict[str, Any]):
+    try:
+        MEMORY_PATH.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass
+
+def _load_persona() -> Dict[str, Any]:
+    # defaults
+    persona = {"default_level": "A1", "strictness": "balanced", "save_attempts": True}
+    if PERSONA_PATH.exists():
+        try:
+            p = json.loads(PERSONA_PATH.read_text(encoding="utf-8"))
+            persona.update(p)
+        except Exception:
+            pass
+    return persona
 
 # Small lexicons and heuristics for basic checks
 COMMON_NOUNS = {
@@ -61,12 +94,19 @@ def _verb_second_position_check(words: List[str]) -> Dict[str, Any]:
             return res
     return res
 
-def assess_sentence(sentence: str, level: str = "A1") -> Dict[str, Any]:
+def assess_sentence(sentence: str, level: Optional[str] = None, persona: Optional[Dict[str, Any]] = None, save_attempt: Optional[bool] = None) -> Dict[str, Any]:
     """Assess a German sentence with simple heuristics.
 
     Returns a dict with a numeric `score` (0-100), list of `errors`, a
     `correction` suggestion, and short `explanations`.
     """
+    # Use persona/defaults
+    p = persona or _load_persona()
+    if level is None:
+        level = p.get("default_level", "A1")
+    if save_attempt is None:
+        save_attempt = bool(p.get("save_attempts", True))
+
     original = sentence.strip()
     words = original.split()
     errors = []
@@ -113,13 +153,36 @@ def assess_sentence(sentence: str, level: str = "A1") -> Dict[str, Any]:
     if corrected and not corrected[0].isupper():
         corrected = corrected[0].upper() + corrected[1:]
 
-    return {
+    result = {
         "original": original,
         "score": score,
         "errors": errors,
         "correction": corrected,
-        "explanations": [e.get("message") for e in errors]
+        "explanations": [e.get("message") for e in errors],
+        "level": level,
+        "strictness": p.get("strictness") if isinstance(p, dict) else None,
     }
+
+    # Persist attempt if requested
+    try:
+        if save_attempt:
+            mem = _load_memory()
+            attempts = mem.get("german_attempts", [])
+            attempts.append({
+                "timestamp": datetime.datetime.now().isoformat(),
+                "original": original,
+                "correction": corrected,
+                "score": score,
+                "errors": [e.get("message") for e in errors],
+                "level": level,
+            })
+            mem["german_attempts"] = attempts
+            _save_memory(mem)
+    except Exception:
+        pass
+
+    return result
+
 
 def generate_tasks(sentence: str, level: str = "A1", num_tasks: int = 3, task_types: List[str] = None) -> List[Dict[str, Any]]:
     """Generate simple learning tasks based on the given sentence.

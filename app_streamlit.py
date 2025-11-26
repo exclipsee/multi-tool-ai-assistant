@@ -39,30 +39,86 @@ if mode == "German Tutor":
         st.error("`german_assistant` not available. Make sure the file exists and is importable.")
         st.stop()
 
-    level = st.selectbox("Target level", ["A1", "A2", "B1", "B2"], index=0)
-    focus = st.multiselect("Focus", ["Grammar", "Vocabulary", "Speaking", "Writing"], default=["Grammar"])
-    sentence = st.text_area("Enter a German sentence to assess", value="Ich lerne Deutsch")
+    # Paths for persona and memory
+    PROJECT_ROOT = Path(__file__).parent
+    PERSONA_PATH = PROJECT_ROOT / "german_persona.json"
+    MEMORY_PATH = PROJECT_ROOT / "memory.json"
 
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Assess sentence"):
-            res = assess_sentence(sentence, level=level)
-            st.subheader("Assessment")
-            st.write(f"Score: {res.get('score')}")
-            st.write("**Correction:**")
-            st.code(res.get('correction'))
-            if res.get('explanations'):
-                st.markdown("**Explanations:**")
-                for e in res.get('explanations'):
-                    st.write(f"- {e}")
-    with col2:
-        if st.button("Generate tasks"):
-            tasks = generate_tasks(sentence, level=level, num_tasks=4)
-            st.subheader("Tasks")
-            for t in tasks:
-                st.markdown(f"- **{t.get('type')}**: {t.get('prompt')}")
+    # Load persona defaults
+    persona = {
+        "default_level": "A1",
+        "strictness": "balanced",
+        "save_attempts": True,
+    }
+    if PERSONA_PATH.exists():
+        try:
+            persona.update(json.loads(PERSONA_PATH.read_text(encoding="utf-8")))
+        except Exception:
+            pass
 
-    # Show sample lessons
+    tabs = st.tabs(["Practice", "Progress", "Preferences"])
+
+    # --- Practice tab ---
+    with tabs[0]:
+        level = st.selectbox("Target level", ["A1", "A2", "B1", "B2"], index=["A1","A2","B1","B2"].index(persona.get("default_level","A1")))
+        focus = st.multiselect("Focus", ["Grammar", "Vocabulary", "Speaking", "Writing"], default=["Grammar"])
+        sentence = st.text_area("Enter a German sentence to assess", value="Ich lerne Deutsch")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Assess sentence"):
+                res = assess_sentence(sentence, level=level, persona=persona, save_attempt=persona.get("save_attempts", True))
+                st.subheader("Assessment")
+                st.write(f"Score: {res.get('score')}")
+                st.write("**Correction:**")
+                st.code(res.get('correction'))
+                if res.get('explanations'):
+                    st.markdown("**Explanations:**")
+                    for e in res.get('explanations'):
+                        st.write(f"- {e}")
+        with col2:
+            if st.button("Generate tasks"):
+                tasks = generate_tasks(sentence, level=level, num_tasks=4)
+                st.subheader("Tasks")
+                for t in tasks:
+                    st.markdown(f"- **{t.get('type')}**: {t.get('prompt')}")
+
+    # --- Progress tab ---
+    with tabs[1]:
+        st.subheader("Your recent attempts")
+        attempts = []
+        if MEMORY_PATH.exists():
+            try:
+                mem = json.loads(MEMORY_PATH.read_text(encoding="utf-8"))
+                attempts = mem.get("german_attempts", [])
+            except Exception:
+                attempts = []
+        if not attempts:
+            st.info("No attempts recorded yet. Assess sentences to build history.")
+        else:
+            recent = list(reversed(attempts))[:20]
+            scores = [a.get("score", 0) for a in recent]
+            avg = sum(scores) / len(scores) if scores else 0
+            st.metric("Average score (recent)", f"{avg:.1f}")
+            for a in recent:
+                ts = a.get("timestamp", "")
+                st.markdown(f"- **{a.get('original')}** → {a.get('correction')} ({a.get('score')}) — {ts}")
+
+    # --- Preferences tab ---
+    with tabs[2]:
+        st.subheader("German Tutor Preferences")
+        new_level = st.selectbox("Default level", ["A1", "A2", "B1", "B2"], index=["A1","A2","B1","B2"].index(persona.get("default_level","A1")))
+        strict = st.radio("Correction strictness", ["gentle", "balanced", "strict"], index=["gentle","balanced","strict"].index(persona.get("strictness","balanced")))
+        save_attempts = st.checkbox("Save attempts to memory.json", value=bool(persona.get("save_attempts", True)))
+        if st.button("Save preferences"):
+            persona_update = {"default_level": new_level, "strictness": strict, "save_attempts": save_attempts}
+            try:
+                PERSONA_PATH.write_text(json.dumps(persona_update, indent=2, ensure_ascii=False), encoding="utf-8")
+                st.success("Preferences saved to german_persona.json")
+            except Exception as e:
+                st.error(f"Failed to save preferences: {e}")
+
+    # Show sample lessons in sidebar
     lessons_path = Path(__file__).parent / "data" / "german_lessons.json"
     if lessons_path.exists():
         try:

@@ -1,0 +1,16 @@
+{
+  "german_attempts": [
+    {
+      "timestamp": "2025-11-25T16:27:20.070842",
+      "original": "ich habe ein haus",
+      "correction": "Ich habe ein Haus.",
+      "score": 55,
+      "errors": [
+        "Sentence should end with a punctuation mark (., !, ?).",
+        "Sentence should start with a capital letter.",
+        "German nouns must be capitalized (Nomen werden großgeschrieben)."
+      ],
+      "level": "A1"
+    }
+  ]
+}

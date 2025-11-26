@@ -1,0 +1,5 @@
+{
+  "default_level": "A1",
+  "strictness": "balanced",
+  "save_attempts": true
+}
