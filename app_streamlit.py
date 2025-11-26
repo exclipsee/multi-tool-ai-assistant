@@ -4,6 +4,7 @@ from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langgraph.prebuilt import create_react_agent
 import json
 from pathlib import Path
+import pandas as pd
 
 # German tutor
 try:
@@ -96,10 +97,37 @@ if mode == "German Tutor":
         if not attempts:
             st.info("No attempts recorded yet. Assess sentences to build history.")
         else:
-            recent = list(reversed(attempts))[:20]
-            scores = [a.get("score", 0) for a in recent]
-            avg = sum(scores) / len(scores) if scores else 0
-            st.metric("Average score (recent)", f"{avg:.1f}")
+            recent = list(reversed(attempts))[:50]
+            # Build DataFrame with timestamps and scores for plotting
+            try:
+                df = pd.DataFrame(recent)
+                if "timestamp" in df.columns and "score" in df.columns:
+                    df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
+                    df = df.dropna(subset=["timestamp"]).set_index("timestamp").sort_index()
+                    if not df.empty:
+                        st.metric("Average score (recent)", f"{df['score'].mean():.1f}")
+                        st.line_chart(df["score"])
+                    else:
+                        scores = [a.get("score", 0) for a in recent]
+                        avg = sum(scores) / len(scores) if scores else 0
+                        st.metric("Average score (recent)", f"{avg:.1f}")
+                        st.line_chart(scores)
+                else:
+                    scores = [a.get("score", 0) for a in recent]
+                    avg = sum(scores) / len(scores) if scores else 0
+                    st.metric("Average score (recent)", f"{avg:.1f}")
+                    st.line_chart(scores)
+            except Exception:
+                # fallback to simple list chart if pandas is missing or fails
+                scores = [a.get("score", 0) for a in recent]
+                avg = sum(scores) / len(scores) if scores else 0
+                st.metric("Average score (recent)", f"{avg:.1f}")
+                try:
+                    st.line_chart(scores)
+                except Exception:
+                    pass
+
+            # List the recent entries
             for a in recent:
                 ts = a.get("timestamp", "")
                 st.markdown(f"- **{a.get('original')}** → {a.get('correction')} ({a.get('score')}) — {ts}")
