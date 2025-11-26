@@ -64,6 +64,25 @@ pip install streamlit
 streamlit run .\app_streamlit.py
 ```
 
+### 🗣 Speech Integration (Beta)
+
+New: `speech_utils.py` + Speech tab in the German Tutor UI.
+
+Provided features:
+- Upload German audio (wav/mp3/m4a/ogg) and transcribe (OpenAI Whisper if `OPENAI_API_KEY` set; stub otherwise).
+- Text-to-Speech generation of any German sentence (OpenAI TTS preferred; falls back to `gTTS`).
+- Quick transfer: After transcription you can reuse the text for assessment/tasks.
+
+Requirements:
+- Set `OPENAI_API_KEY` for high quality transcription + neural TTS.
+- Installs `gTTS` as fallback.
+
+Roadmap ideas:
+- Live microphone capture (streamlit-webrtc).
+- Offline local whisper (`faster-whisper`).
+- Pronunciation / phoneme scoring.
+- Batch drilling from lesson sentences.
+
 ## 💸 Costs & Privacy
 
 - OpenAI API is paid per token. Use models you have access to.

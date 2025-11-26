@@ -5,6 +5,11 @@ from langgraph.prebuilt import create_react_agent
 import json
 from pathlib import Path
 import pandas as pd
+try:
+    from speech_utils import transcribe_audio, synthesize_speech
+except Exception:
+    transcribe_audio = None  # type: ignore
+    synthesize_speech = None  # type: ignore
 
 # German tutor
 try:
@@ -57,13 +62,14 @@ if mode == "German Tutor":
         except Exception:
             pass
 
-    tabs = st.tabs(["Practice", "Progress", "Preferences"])
+    tabs = st.tabs(["Practice", "Progress", "Preferences", "Speech (Beta)"])
 
     # --- Practice tab ---
     with tabs[0]:
         level = st.selectbox("Target level", ["A1", "A2", "B1", "B2"], index=["A1","A2","B1","B2"].index(persona.get("default_level","A1")))
         focus = st.multiselect("Focus", ["Grammar", "Vocabulary", "Speaking", "Writing"], default=["Grammar"])
-        sentence = st.text_area("Enter a German sentence to assess", value="Ich lerne Deutsch")
+        initial_sentence = st.session_state.get("transcribed_sentence", "Ich lerne Deutsch")
+        sentence = st.text_area("Enter a German sentence to assess", value=initial_sentence)
 
         col1, col2 = st.columns(2)
         with col1:
@@ -145,6 +151,38 @@ if mode == "German Tutor":
                 st.success("Preferences saved to german_persona.json")
             except Exception as e:
                 st.error(f"Failed to save preferences: {e}")
+
+    # --- Speech (Beta) tab ---
+    with tabs[3]:
+        st.subheader("Speech Practice (Beta)")
+        st.caption("Upload a short German audio clip (wav/mp3/m4a/ogg) to transcribe. Requires OPENAI_API_KEY for best results.")
+        audio_file = st.file_uploader("Upload recorded speech", type=["wav", "mp3", "m4a", "ogg"])
+        if audio_file and transcribe_audio:
+            if st.button("Transcribe audio"):
+                data = audio_file.read()
+                text, source = transcribe_audio(data, filename=audio_file.name)
+                st.write(f"**Source:** {source}")
+                st.write(f"**Transcription:** {text}")
+                if st.button("Use transcription for assessment"):
+                    st.session_state["transcribed_sentence"] = text
+                    st.info("Go to Practice tab and paste the transcription if not auto-filled.")
+        elif not transcribe_audio:
+            st.warning("Speech utilities not available. Check `speech_utils.py`.")
+
+        st.divider()
+        st.caption("Text-to-Speech any German text")
+        tts_text = st.text_area("Text to speak", value="Guten Tag! Willkommen zum Sprachtraining.")
+        voice = st.selectbox("Voice (OpenAI)", ["alloy", "verse", "aria", "nova"], index=0)
+        if st.button("Generate Audio"):
+            if synthesize_speech:
+                audio_bytes, mime, source = synthesize_speech(tts_text, voice=voice)
+                st.write(f"**Source:** {source}")
+                if audio_bytes:
+                    st.audio(audio_bytes, format=mime)
+                else:
+                    st.error("Failed to generate audio.")
+            else:
+                st.error("TTS unavailable (missing dependency or API key).")
 
     # Show sample lessons in sidebar
     lessons_path = Path(__file__).parent / "data" / "german_lessons.json"
