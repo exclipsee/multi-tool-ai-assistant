@@ -83,6 +83,16 @@ Roadmap ideas:
 - Pronunciation / phoneme scoring.
 - Batch drilling from lesson sentences.
 
+Live microphone capture (Quick setup)
+- The Speech tab now supports live microphone recording using an optional component. Install the recorder and run Streamlit:
+
+```powershell
+pip install -r requirements.txt
+streamlit run .\app_streamlit.py
+```
+
+- If you prefer the component approach, install: `pip install streamlit-audio-recorder` (optional). If it's not installed the UI falls back to file upload.
+
 ## 💸 Costs & Privacy
 
 - OpenAI API is paid per token. Use models you have access to.

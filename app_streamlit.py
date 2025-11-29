@@ -10,6 +10,11 @@ try:
 except Exception:
     transcribe_audio = None  # type: ignore
     synthesize_speech = None  # type: ignore
+try:
+    # Optional lightweight recorder component (returns WAV bytes or base64 data)
+    from streamlit_audio_recorder import audio_recorder  # type: ignore
+except Exception:
+    audio_recorder = None  # type: ignore
 
 # German tutor
 try:
@@ -156,7 +161,40 @@ if mode == "German Tutor":
     with tabs[3]:
         st.subheader("Speech Practice (Beta)")
         st.caption("Upload a short German audio clip (wav/mp3/m4a/ogg) to transcribe. Requires OPENAI_API_KEY for best results.")
-        audio_file = st.file_uploader("Upload recorded speech", type=["wav", "mp3", "m4a", "ogg"])
+        # Live recorder (optional component)
+        recorded = None
+        if audio_recorder:
+            st.caption("Or record directly from your microphone (click to start/stop).")
+            try:
+                recorded = audio_recorder()
+            except Exception:
+                recorded = None
+
+        # If recorder produced data, show a small player and allow transcription
+        if recorded:
+            # Recorded might be bytes or a data-url string
+            import base64
+            if isinstance(recorded, str) and recorded.startswith("data:"):
+                audio_bytes = base64.b64decode(recorded.split(",", 1)[1])
+            elif isinstance(recorded, (bytes, bytearray)):
+                audio_bytes = bytes(recorded)
+            else:
+                audio_bytes = None
+
+            if audio_bytes:
+                st.audio(audio_bytes, format="audio/wav")
+                if transcribe_audio and st.button("Transcribe recording"):
+                    text, source = transcribe_audio(audio_bytes, filename="recording.wav")
+                    st.write(f"**Source:** {source}")
+                    st.write(f"**Transcription:** {text}")
+                    if st.button("Use transcription for assessment"):
+                        st.session_state["transcribed_sentence"] = text
+                        st.info("Transcription stored — go to Practice tab.")
+            else:
+                st.warning("Could not decode recorded audio. You can upload a file instead.")
+
+        # Fallback: file upload
+        audio_file = st.file_uploader("Or upload recorded speech", type=["wav", "mp3", "m4a", "ogg"])
         if audio_file and transcribe_audio:
             if st.button("Transcribe audio"):
                 data = audio_file.read()
