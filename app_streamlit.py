@@ -68,6 +68,14 @@ if mode == "German Tutor":
             pass
 
     tabs = st.tabs(["Practice", "Progress", "Preferences", "Speech (Beta)"])
+    # Add Drill (SRS) tab at the end
+    try:
+        from srs import get_due_cards, import_attempts, schedule_card, add_card
+    except Exception:
+        get_due_cards = None  # type: ignore
+        import_attempts = None  # type: ignore
+        schedule_card = None  # type: ignore
+        add_card = None  # type: ignore
 
     # --- Practice tab ---
     with tabs[0]:
@@ -221,6 +229,61 @@ if mode == "German Tutor":
                     st.error("Failed to generate audio.")
             else:
                 st.error("TTS unavailable (missing dependency or API key).")
+
+        # --- Drill (SRS) tab ---
+        with st.expander("Drill (Spaced Repetition)", expanded=False):
+            st.subheader("Drill (SRS)")
+            if get_due_cards is None:
+                st.info("SRS module not available. Ensure `srs.py` exists.")
+            else:
+                mem_path = Path(__file__).parent / "memory.json"
+                # Show counts
+                due = get_due_cards()
+                st.markdown(f"**Due cards:** {len(due)}")
+
+                # Import recent attempts button
+                if st.button("Import recent attempts as cards"):
+                    attempts = []
+                    if mem_path.exists():
+                        try:
+                            j = json.loads(mem_path.read_text(encoding="utf-8"))
+                            attempts = j.get("german_attempts", [])
+                        except Exception:
+                            attempts = []
+                    added = import_attempts(attempts) if import_attempts else 0
+                    st.success(f"Imported {added} attempts into SRS deck.")
+
+                # Drill loop
+                if not hasattr(st.session_state, "srs_queue") or not st.session_state.srs_queue:
+                    st.session_state.srs_queue = [c.get("id") for c in due]
+
+                if st.session_state.srs_queue:
+                    cid = st.session_state.srs_queue[0]
+                    # load card details from memory
+                    mem = {}
+                    try:
+                        mem = json.loads(mem_path.read_text(encoding="utf-8"))
+                    except Exception:
+                        mem = {}
+                    cards = {c.get("id"): c for c in mem.get("srs_cards", [])}
+                    card = cards.get(cid)
+                    if not card:
+                        st.write("Card not found; skipping.")
+                        st.session_state.srs_queue.pop(0)
+                    else:
+                        st.markdown(f"**Front:** {card.get('front')}")
+                        if st.button("Reveal answer"):
+                            st.markdown(f"**Back (suggested):** {card.get('back')}")
+                        rating = st.slider("Rate your recall (0-5)", min_value=0, max_value=5, value=5)
+                        if st.button("Submit rating"):
+                            schedule_card(card.get("id"), int(rating))
+                            st.success("Rating saved — moved to next card.")
+                            # pop and reload due list
+                            st.session_state.srs_queue.pop(0)
+                            # refresh due list in next render
+                            st.experimental_rerun()
+                else:
+                    st.info("No cards due. Import attempts or wait until next review.")
 
     # Show sample lessons in sidebar
     lessons_path = Path(__file__).parent / "data" / "german_lessons.json"
