@@ -235,7 +235,78 @@ def generate_followup(assessment: Dict[str, Any]) -> Dict[str, Any]:
 
     Returns a dict {role: 'assistant', prompt: str, intent: str}
     """
-    # Default follow-up
+    # Attempt LLM-driven follow-up when OpenAI is available
+    try:
+        client = OpenAI() if OpenAI and os.getenv("OPENAI_API_KEY") else None
+    except Exception:
+        client = None
+
+    # Build a compact system/user prompt describing the assessment
+    base = {
+        "original": assessment.get("original"),
+        "score": assessment.get("score"),
+        "correction": assessment.get("correction"),
+        "errors": assessment.get("errors", []),
+    }
+
+    system_instructions = (
+        "You are a concise German tutor. Given the original sentence, a numeric score, a suggested correction, "
+        "and a list of error objects, produce exactly one short follow-up practice prompt (in German or English as appropriate) "
+        "that focuses on the primary issue. Also return a single intent label from this set: "
+        "[capitalize_nouns, verb_position, article_agreement, punctuation, simplify_and_repeat, expand, general_practice, conversation_question]. "
+        "Respond with JSON only, with keys: prompt (string) and intent (string). Keep prompt under 40 words."
+    )
+
+    user_payload = json.dumps(base, ensure_ascii=False)
+
+    if client:
+        try:
+            model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+            # Use the generic Responses API; attempt to extract text robustly
+            resp = client.responses.create(model=model, input=f"{system_instructions}\n\nData:\n{user_payload}")
+            # Try several ways to extract text
+            text = None
+            try:
+                text = getattr(resp, "output_text", None)
+            except Exception:
+                text = None
+            if not text:
+                try:
+                    out = getattr(resp, "output", None)
+                    if out and isinstance(out, list) and out:
+                        first = out[0]
+                        if isinstance(first, dict):
+                            cont = first.get("content") or first.get("data")
+                            if isinstance(cont, list) and cont:
+                                # content elements may contain text
+                                for c in cont:
+                                    if isinstance(c, dict) and c.get("type") == "output_text":
+                                        text = c.get("text")
+                                        break
+                                if not text:
+                                    # fallback: stringify
+                                    text = str(cont[0])
+                except Exception:
+                    text = None
+
+            if not text:
+                text = str(resp)
+
+            # Parse JSON from model output
+            try:
+                j = json.loads(text.strip())
+                prompt = j.get("prompt") or j.get("instruction") or j.get("text")
+                intent = j.get("intent") or j.get("label")
+                if prompt:
+                    return {"role": "assistant", "prompt": prompt, "intent": intent or "general_practice"}
+            except Exception:
+                # If parsing fails, fall back to heuristics below
+                pass
+        except Exception:
+            # API call failed — fall through to heuristic
+            pass
+
+    # Heuristic fallback (original behavior)
     intent = "general_practice"
     prompt = "Good. Try to write another short sentence using the same idea."
 
@@ -243,13 +314,13 @@ def generate_followup(assessment: Dict[str, Any]) -> Dict[str, Any]:
     msgs = [e.get("message") if isinstance(e, dict) else str(e) for e in errors]
 
     # Heuristic routing based on common error types
-    if any((e.get("type") == "noun_capitalization" or "Nomen" in (e.get("message") or "")) for e in errors if isinstance(e, dict)):
+    if any((isinstance(e, dict) and (e.get("type") == "noun_capitalization" or "Nomen" in (e.get("message") or ""))) for e in errors):
         intent = "capitalize_nouns"
         prompt = "Focus on capitalizing nouns. Rewrite the sentence with correct noun capitalization."
-    elif any((e.get("type") == "verb_position" ) for e in errors if isinstance(e, dict)):
+    elif any((isinstance(e, dict) and e.get("type") == "verb_position") for e in errors):
         intent = "verb_position"
         prompt = "Pay attention to verb position. Try forming a short main clause where the conjugated verb is in second position."
-    elif any((e.get("type") == "article_agreement") for e in errors if isinstance(e, dict)):
+    elif any((isinstance(e, dict) and e.get("type") == "article_agreement") for e in errors):
         intent = "article_agreement"
         prompt = "Check article and noun agreement. Rewrite the sentence using the correct article for the noun."
     elif any("punctuation" in (m or "") for m in msgs):
