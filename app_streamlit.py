@@ -68,6 +68,14 @@ if mode == "German Tutor":
             pass
 
     tabs = st.tabs(["Practice", "Progress", "Preferences", "Speech (Beta)"])
+    # Conversation Tutor tab
+    try:
+        from german_assistant import generate_followup, track_mistakes
+    except Exception:
+        generate_followup = None  # type: ignore
+        track_mistakes = None  # type: ignore
+
+    tabs = st.tabs(["Practice", "Conversation", "Progress", "Preferences", "Speech (Beta)"])
     # Add Drill (SRS) tab at the end
     try:
         from srs import get_due_cards, import_attempts, schedule_card, add_card
@@ -103,8 +111,62 @@ if mode == "German Tutor":
                 for t in tasks:
                     st.markdown(f"- **{t.get('type')}**: {t.get('prompt')}")
 
-    # --- Progress tab ---
+    # --- Conversation Tutor tab ---
     with tabs[1]:
+        st.subheader("Conversational Tutor")
+        if generate_followup is None or track_mistakes is None:
+            st.info("Conversational Tutor unavailable — ensure `german_assistant.generate_followup` is present.")
+        else:
+            # Initialize session state
+            if "tutor_conv" not in st.session_state:
+                st.session_state.tutor_conv = [
+                    {"role": "assistant", "text": "Hallo! Let's practice German. Say something in German and I'll give feedback."}
+                ]
+
+            # Render conversation
+            for m in st.session_state.tutor_conv:
+                if m["role"] == "assistant":
+                    with st.chat_message("assistant"):
+                        st.write(m["text"])
+                else:
+                    with st.chat_message("user"):
+                        st.write(m["text"])
+
+            user_input = st.text_input("Your turn (in German)", key="tutor_input")
+            if st.button("Send", key="tutor_send") and user_input:
+                # Append user message
+                st.session_state.tutor_conv.append({"role": "user", "text": user_input})
+                # Assess
+                try:
+                    res = assess_sentence(user_input, persona=persona)
+                except Exception:
+                    res = None
+                if res:
+                    # Track mistakes
+                    try:
+                        track_mistakes(res)
+                    except Exception:
+                        pass
+                    # Show assessment
+                    corr = res.get("correction")
+                    expl = res.get("explanations", [])
+                    assistant_text = f"Score: {res.get('score')}\nCorrection: {corr}\n"
+                    if expl:
+                        assistant_text += "\nExplanations:\n" + "\n".join([f"- {e}" for e in expl])
+                    st.session_state.tutor_conv.append({"role": "assistant", "text": assistant_text})
+                    # Follow-up prompt
+                    try:
+                        fup = generate_followup(res)
+                        st.session_state.tutor_conv.append({"role": "assistant", "text": fup.get("prompt")})
+                    except Exception:
+                        pass
+
+            # Small control to clear conversation
+            if st.button("Reset conversation"):
+                st.session_state.tutor_conv = [{"role": "assistant", "text": "Hallo! Let's practice German. Say something in German and I'll give feedback."}]
+
+    # --- Progress tab ---
+    with tabs[2]:
         st.subheader("Your recent attempts")
         attempts = []
         if MEMORY_PATH.exists():

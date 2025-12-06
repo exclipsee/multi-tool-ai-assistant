@@ -230,6 +230,73 @@ def generate_tasks(sentence: str, level: str = "A1", num_tasks: int = 3, task_ty
     return tasks
 
 
+def generate_followup(assessment: Dict[str, Any]) -> Dict[str, Any]:
+    """Create a short targeted follow-up prompt based on the assessment result.
+
+    Returns a dict {role: 'assistant', prompt: str, intent: str}
+    """
+    # Default follow-up
+    intent = "general_practice"
+    prompt = "Good. Try to write another short sentence using the same idea."
+
+    errors = assessment.get("errors", []) or []
+    msgs = [e.get("message") if isinstance(e, dict) else str(e) for e in errors]
+
+    # Heuristic routing based on common error types
+    if any((e.get("type") == "noun_capitalization" or "Nomen" in (e.get("message") or "")) for e in errors if isinstance(e, dict)):
+        intent = "capitalize_nouns"
+        prompt = "Focus on capitalizing nouns. Rewrite the sentence with correct noun capitalization."
+    elif any((e.get("type") == "verb_position" ) for e in errors if isinstance(e, dict)):
+        intent = "verb_position"
+        prompt = "Pay attention to verb position. Try forming a short main clause where the conjugated verb is in second position."
+    elif any((e.get("type") == "article_agreement") for e in errors if isinstance(e, dict)):
+        intent = "article_agreement"
+        prompt = "Check article and noun agreement. Rewrite the sentence using the correct article for the noun."
+    elif any("punctuation" in (m or "") for m in msgs):
+        intent = "punctuation"
+        prompt = "Add correct punctuation. Write the sentence with appropriate punctuation (., !, ?)."
+    else:
+        # If score low, ask to try a simplified repetition
+        score = assessment.get("score", 100)
+        if score < 70:
+            intent = "simplify_and_repeat"
+            prompt = "Try to rewrite the sentence more simply and correctly (short sentence, present tense)."
+        else:
+            intent = "expand"
+            prompt = "Nice! Now write a follow-up sentence that expands the idea (1-2 short sentences)."
+
+    return {"role": "assistant", "prompt": prompt, "intent": intent}
+
+
+def track_mistakes(assessment: Dict[str, Any]):
+    """Record mistake types and counts to `memory.json` under key `german_mistakes`.
+
+    This helps the Conversational Tutor adapt over time.
+    """
+    try:
+        mem_path = PROJECT_ROOT / "memory.json"
+        mem = {}
+        if mem_path.exists():
+            try:
+                mem = json.loads(mem_path.read_text(encoding="utf-8"))
+            except Exception:
+                mem = {}
+        mistakes = mem.get("german_mistakes", {})
+        for e in assessment.get("errors", []):
+            if isinstance(e, dict):
+                key = e.get("type") or e.get("message") or "unknown"
+            else:
+                key = str(e)
+            mistakes[key] = mistakes.get(key, 0) + 1
+        mem["german_mistakes"] = mistakes
+        try:
+            mem_path.write_text(json.dumps(mem, indent=2, ensure_ascii=False), encoding="utf-8")
+        except Exception:
+            pass
+    except Exception:
+        pass
+
+
 if __name__ == '__main__':
     example = "ich habe ein haus"
     print("Assessing:", example)
