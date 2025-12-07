@@ -11,6 +11,8 @@ import random
 from pathlib import Path
 import json
 import datetime
+import os
+import hashlib
 
 # memory file (store attempts/preferences)
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -235,6 +237,28 @@ def generate_followup(assessment: Dict[str, Any]) -> Dict[str, Any]:
 
     Returns a dict {role: 'assistant', prompt: str, intent: str}
     """
+    # Create a stable cache key from the assessment content
+    def _make_key(obj: Dict[str, Any]) -> str:
+        key_data = {
+            "original": obj.get("original"),
+            "score": obj.get("score"),
+            "correction": obj.get("correction"),
+            "errors": obj.get("errors", []),
+        }
+        s = json.dumps(key_data, sort_keys=True, ensure_ascii=False)
+        return hashlib.sha256(s.encode("utf-8")).hexdigest()
+
+    cache_key = _make_key(assessment)
+
+    # Try cache first
+    try:
+        mem = _load_memory()
+        cache = mem.get("followup_cache", {})
+        if cache_key in cache:
+            return cache[cache_key]
+    except Exception:
+        cache = {}
+
     # Attempt LLM-driven follow-up when OpenAI is available
     try:
         client = OpenAI() if OpenAI and os.getenv("OPENAI_API_KEY") else None
@@ -262,9 +286,7 @@ def generate_followup(assessment: Dict[str, Any]) -> Dict[str, Any]:
     if client:
         try:
             model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-            # Use the generic Responses API; attempt to extract text robustly
             resp = client.responses.create(model=model, input=f"{system_instructions}\n\nData:\n{user_payload}")
-            # Try several ways to extract text
             text = None
             try:
                 text = getattr(resp, "output_text", None)
@@ -278,13 +300,11 @@ def generate_followup(assessment: Dict[str, Any]) -> Dict[str, Any]:
                         if isinstance(first, dict):
                             cont = first.get("content") or first.get("data")
                             if isinstance(cont, list) and cont:
-                                # content elements may contain text
                                 for c in cont:
                                     if isinstance(c, dict) and c.get("type") == "output_text":
                                         text = c.get("text")
                                         break
                                 if not text:
-                                    # fallback: stringify
                                     text = str(cont[0])
                 except Exception:
                     text = None
@@ -292,28 +312,34 @@ def generate_followup(assessment: Dict[str, Any]) -> Dict[str, Any]:
             if not text:
                 text = str(resp)
 
-            # Parse JSON from model output
             try:
                 j = json.loads(text.strip())
                 prompt = j.get("prompt") or j.get("instruction") or j.get("text")
                 intent = j.get("intent") or j.get("label")
                 if prompt:
-                    return {"role": "assistant", "prompt": prompt, "intent": intent or "general_practice"}
+                    out = {"role": "assistant", "prompt": prompt, "intent": intent or "general_practice"}
+                    # persist
+                    try:
+                        mem = _load_memory()
+                        c = mem.get("followup_cache", {})
+                        c[cache_key] = out
+                        mem["followup_cache"] = c
+                        _save_memory(mem)
+                    except Exception:
+                        pass
+                    return out
             except Exception:
-                # If parsing fails, fall back to heuristics below
                 pass
         except Exception:
-            # API call failed — fall through to heuristic
             pass
 
-    # Heuristic fallback (original behavior)
+    # Heuristic fallback
     intent = "general_practice"
     prompt = "Good. Try to write another short sentence using the same idea."
 
     errors = assessment.get("errors", []) or []
     msgs = [e.get("message") if isinstance(e, dict) else str(e) for e in errors]
 
-    # Heuristic routing based on common error types
     if any((isinstance(e, dict) and (e.get("type") == "noun_capitalization" or "Nomen" in (e.get("message") or ""))) for e in errors):
         intent = "capitalize_nouns"
         prompt = "Focus on capitalizing nouns. Rewrite the sentence with correct noun capitalization."
@@ -327,7 +353,6 @@ def generate_followup(assessment: Dict[str, Any]) -> Dict[str, Any]:
         intent = "punctuation"
         prompt = "Add correct punctuation. Write the sentence with appropriate punctuation (., !, ?)."
     else:
-        # If score low, ask to try a simplified repetition
         score = assessment.get("score", 100)
         if score < 70:
             intent = "simplify_and_repeat"
@@ -336,7 +361,16 @@ def generate_followup(assessment: Dict[str, Any]) -> Dict[str, Any]:
             intent = "expand"
             prompt = "Nice! Now write a follow-up sentence that expands the idea (1-2 short sentences)."
 
-    return {"role": "assistant", "prompt": prompt, "intent": intent}
+    out = {"role": "assistant", "prompt": prompt, "intent": intent}
+    try:
+        mem = _load_memory()
+        c = mem.get("followup_cache", {})
+        c[cache_key] = out
+        mem["followup_cache"] = c
+        _save_memory(mem)
+    except Exception:
+        pass
+    return out
 
 
 def track_mistakes(assessment: Dict[str, Any]):
