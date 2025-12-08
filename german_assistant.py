@@ -232,7 +232,7 @@ def generate_tasks(sentence: str, level: str = "A1", num_tasks: int = 3, task_ty
     return tasks
 
 
-def generate_followup(assessment: Dict[str, Any]) -> Dict[str, Any]:
+def generate_followup(assessment: Dict[str, Any], force_regen: bool = False) -> Dict[str, Any]:
     """Create a short targeted follow-up prompt based on the assessment result.
 
     Returns a dict {role: 'assistant', prompt: str, intent: str}
@@ -250,11 +250,11 @@ def generate_followup(assessment: Dict[str, Any]) -> Dict[str, Any]:
 
     cache_key = _make_key(assessment)
 
-    # Try cache first
+    # Try cache first (unless force_regen requested)
     try:
         mem = _load_memory()
         cache = mem.get("followup_cache", {})
-        if cache_key in cache:
+        if not force_regen and cache_key in cache:
             return cache[cache_key]
     except Exception:
         cache = {}
@@ -317,17 +317,17 @@ def generate_followup(assessment: Dict[str, Any]) -> Dict[str, Any]:
                 prompt = j.get("prompt") or j.get("instruction") or j.get("text")
                 intent = j.get("intent") or j.get("label")
                 if prompt:
-                    out = {"role": "assistant", "prompt": prompt, "intent": intent or "general_practice"}
-                    # persist
-                    try:
-                        mem = _load_memory()
-                        c = mem.get("followup_cache", {})
-                        c[cache_key] = out
-                        mem["followup_cache"] = c
-                        _save_memory(mem)
-                    except Exception:
-                        pass
-                    return out
+                        out = {"role": "assistant", "prompt": prompt, "intent": intent or "general_practice", "assessment": base}
+                        # persist
+                        try:
+                            mem = _load_memory()
+                            c = mem.get("followup_cache", {})
+                            c[cache_key] = out
+                            mem["followup_cache"] = c
+                            _save_memory(mem)
+                        except Exception:
+                            pass
+                        return out
             except Exception:
                 pass
         except Exception:
@@ -361,7 +361,7 @@ def generate_followup(assessment: Dict[str, Any]) -> Dict[str, Any]:
             intent = "expand"
             prompt = "Nice! Now write a follow-up sentence that expands the idea (1-2 short sentences)."
 
-    out = {"role": "assistant", "prompt": prompt, "intent": intent}
+    out = {"role": "assistant", "prompt": prompt, "intent": intent, "assessment": base}
     try:
         mem = _load_memory()
         c = mem.get("followup_cache", {})

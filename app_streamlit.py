@@ -165,6 +165,58 @@ if mode == "German Tutor":
             if st.button("Reset conversation"):
                 st.session_state.tutor_conv = [{"role": "assistant", "text": "Hallo! Let's practice German. Say something in German and I'll give feedback."}]
 
+            # Follow-up cache management UI
+            with st.expander("Follow-up Cache (manage)"):
+                try:
+                    mem = __import__("german_assistant")._load_memory()
+                    cache = mem.get("followup_cache", {})
+                except Exception:
+                    cache = {}
+                st.write(f"Cached entries: {len(cache)}")
+                if st.button("Clear follow-up cache", key="clear_followup_cache"):
+                    try:
+                        mem = __import__("german_assistant")._load_memory()
+                        mem["followup_cache"] = {}
+                        __import__("german_assistant")._save_memory(mem)
+                        st.experimental_rerun()
+                    except Exception as e:
+                        st.error(f"Failed to clear cache: {e}")
+
+                shown = 0
+                for k, v in list(cache.items()):
+                    if shown >= 10:
+                        break
+                    shown += 1
+                    col1, col2, col3 = st.columns([6, 1, 1])
+                    prompt_preview = v.get("prompt") or str(v.get("intent"))
+                    with col1:
+                        st.write(prompt_preview[:300])
+                    with col2:
+                        if st.button("Refresh", key=f"refresh_{k}"):
+                            try:
+                                mem = __import__("german_assistant")._load_memory()
+                                mem.get("followup_cache", {}).pop(k, None)
+                                __import__("german_assistant")._save_memory(mem)
+                                assessment = v.get("assessment")
+                                if not assessment:
+                                    st.warning("No assessment stored for this entry; regenerated entry will be created on next request.")
+                                else:
+                                    new = __import__("german_assistant").generate_followup(assessment, force_regen=True)
+                                    st.success("Refreshed and re-cached entry.")
+                                    st.write(new.get("prompt"))
+                            except Exception as e:
+                                st.error(f"Failed to refresh: {e}")
+                    with col3:
+                        if st.button("Delete", key=f"del_{k}"):
+                            try:
+                                mem = __import__("german_assistant")._load_memory()
+                                mem.get("followup_cache", {}).pop(k, None)
+                                __import__("german_assistant")._save_memory(mem)
+                                st.success("Deleted cache entry")
+                                st.experimental_rerun()
+                            except Exception as e:
+                                st.error(f"Failed to delete: {e}")
+
     # --- Progress tab ---
     with tabs[2]:
         st.subheader("Your recent attempts")
