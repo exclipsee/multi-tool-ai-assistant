@@ -172,7 +172,23 @@ if mode == "German Tutor":
                     cache = mem.get("followup_cache", {})
                 except Exception:
                     cache = {}
-                st.write(f"Cached entries: {len(cache)}")
+                # Search / filter input
+                q = st.text_input("Search cached follow-ups", value="", key="followup_search")
+                filtered_keys = []
+                for k, v in cache.items():
+                    if not q:
+                        filtered_keys.append(k)
+                        continue
+                    hay = " ".join([
+                        str(v.get("prompt", "")),
+                        str(v.get("intent", "")),
+                        str(v.get("assessment", {}).get("original", "")),
+                        str(v.get("assessment", {}).get("correction", "")),
+                    ]).lower()
+                    if q.lower() in hay:
+                        filtered_keys.append(k)
+
+                st.write(f"Cached entries: {len(cache)} (showing {len(filtered_keys)})")
                 if st.button("Clear follow-up cache", key="clear_followup_cache"):
                     try:
                         mem = __import__("german_assistant")._load_memory()
@@ -183,14 +199,30 @@ if mode == "German Tutor":
                         st.error(f"Failed to clear cache: {e}")
 
                 shown = 0
-                for k, v in list(cache.items()):
-                    if shown >= 10:
+                for k in list(filtered_keys):
+                    if shown >= 20:
                         break
+                    v = cache.get(k, {})
                     shown += 1
                     col1, col2, col3 = st.columns([6, 1, 1])
                     prompt_preview = v.get("prompt") or str(v.get("intent"))
                     with col1:
-                        st.write(prompt_preview[:300])
+                        st.markdown(f"**{prompt_preview[:300]}**")
+                        cached_at = v.get("cached_at") or "unknown"
+                        assessment = v.get("assessment") or {}
+                        orig = assessment.get("original")
+                        score = assessment.get("score")
+                        corr = assessment.get("correction")
+                        if orig or score is not None or corr:
+                            preview = []
+                            if orig:
+                                preview.append(f"Original: {orig}")
+                            if score is not None:
+                                preview.append(f"Score: {score}")
+                            if corr:
+                                preview.append(f"Correction: {corr}")
+                            st.caption(" | ".join(preview))
+                        st.write(f"Cached at: {cached_at}")
                     with col2:
                         if st.button("Refresh", key=f"refresh_{k}"):
                             try:

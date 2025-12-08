@@ -317,7 +317,13 @@ def generate_followup(assessment: Dict[str, Any], force_regen: bool = False) -> 
                 prompt = j.get("prompt") or j.get("instruction") or j.get("text")
                 intent = j.get("intent") or j.get("label")
                 if prompt:
-                        out = {"role": "assistant", "prompt": prompt, "intent": intent or "general_practice", "assessment": base}
+                        out = {
+                            "role": "assistant",
+                            "prompt": prompt,
+                            "intent": intent or "general_practice",
+                            "assessment": base,
+                            "cached_at": datetime.datetime.now().isoformat(),
+                        }
                         # persist
                         try:
                             mem = _load_memory()
@@ -361,7 +367,13 @@ def generate_followup(assessment: Dict[str, Any], force_regen: bool = False) -> 
             intent = "expand"
             prompt = "Nice! Now write a follow-up sentence that expands the idea (1-2 short sentences)."
 
-    out = {"role": "assistant", "prompt": prompt, "intent": intent, "assessment": base}
+    out = {
+        "role": "assistant",
+        "prompt": prompt,
+        "intent": intent,
+        "assessment": base,
+        "cached_at": datetime.datetime.now().isoformat(),
+    }
     try:
         mem = _load_memory()
         c = mem.get("followup_cache", {})
