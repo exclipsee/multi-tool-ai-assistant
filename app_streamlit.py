@@ -5,6 +5,7 @@ from langgraph.prebuilt import create_react_agent
 import json
 from pathlib import Path
 import pandas as pd
+import datetime
 try:
     from speech_utils import transcribe_audio, synthesize_speech
 except Exception:
@@ -49,6 +50,16 @@ if mode == "German Tutor":
     if assess_sentence is None:
         st.error("`german_assistant` not available. Make sure the file exists and is importable.")
         st.stop()
+
+    # Record a visit for streaks/gamification
+    try:
+        from streaks import record_visit
+        try:
+            record_visit()
+        except Exception:
+            pass
+    except Exception:
+        pass
 
     # Paths for persona and memory
     PROJECT_ROOT = Path(__file__).parent
@@ -456,6 +467,44 @@ with st.sidebar:
         except Exception as e:
             st.error(str(e))
     st.caption("Set OPENAI_API_KEY and OPENAI_MODEL in .env")
+
+    # Study streaks & badges
+    try:
+        from streaks import get_streak_info
+        info = get_streak_info()
+        st.subheader("Study Streaks")
+        st.metric("Current streak (days)", info.get("streak", 0))
+        st.write(f"Total assessments: {info.get('total_assessments', 0)}")
+        badges = info.get("badges", [])
+        newly = info.get("newly_earned", [])
+        if badges:
+            st.write("Badges: " + ", ".join(badges))
+        else:
+            st.write("No badges yet. Start practicing!")
+        if newly:
+            st.success("New badges earned: " + ", ".join(newly))
+    except Exception:
+        pass
+
+    # SRS due suggestion (simple heuristic)
+    try:
+        mem_path = Path(__file__).parent / "memory.json"
+        due_count = 0
+        if mem_path.exists():
+            m = json.loads(mem_path.read_text(encoding="utf-8"))
+            cards = m.get("srs_cards", [])
+            today = datetime.date.today().isoformat()
+            for c in cards:
+                nr = c.get("next_review")
+                if not nr:
+                    continue
+                nr_date = str(nr).split("T")[0]
+                if nr_date <= today:
+                    due_count += 1
+        if due_count > 0:
+            st.info(f"You have {due_count} SRS cards due. Suggested goal: review {min(due_count,10)} cards today.")
+    except Exception:
+        pass
 
 # Build agent once and keep in session
 if "agent" not in st.session_state:

@@ -180,6 +180,15 @@ def assess_sentence(sentence: str, level: Optional[str] = None, persona: Optiona
             })
             mem["german_attempts"] = attempts
             _save_memory(mem)
+            try:
+                # record for streaks/gamification if module available
+                try:
+                    from streaks import record_assessment
+                    record_assessment()
+                except Exception:
+                    pass
+            except Exception:
+                pass
     except Exception:
         pass
 
