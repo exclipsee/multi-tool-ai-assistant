@@ -91,6 +91,22 @@ pip install -r requirements.txt
 streamlit run .\app_streamlit.py
 ```
 
+### 📈 Study Streaks & Gamification
+
+We've added a lightweight gamification system to help you build a habit:
+
+- What it records: daily "visits" to the `German Tutor` mode and completed assessments. Data is stored in `memory.json` under the `study_activity` key.
+- What you see: the Streamlit sidebar displays your current streak (consecutive active days), total assessments, and earned badges (e.g. "First Activity", "3-Day Streak", "7-Day Streak", "10 Assessments").
+- Automatic tracking: visits are recorded when you open the `German Tutor` mode; assessments recorded via the UI call are counted automatically.
+- SRS suggestion: the sidebar also shows a quick suggestion if you have SRS cards due to review today.
+
+How to use
+- Run the app and open `German Tutor` — your visit will be recorded automatically.
+- Do assessments (Practice tab or Conversation mode) to earn badges and grow your streak.
+- To inspect stored data manually, open `memory.json` and look for the `study_activity` object.
+
+Why: small rewards and visible progress help with retention — this provides a friendly nudge to practice daily.
+
 - If you prefer the component approach, install: `pip install streamlit-audio-recorder` (optional). If it's not installed the UI falls back to file upload.
 
 ## 💸 Costs & Privacy
