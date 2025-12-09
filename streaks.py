@@ -122,3 +122,18 @@ def get_streak_info() -> Dict[str, Any]:
         "newly_earned": newly_earned,
         "last_active": activity.get("last_active"),
     }
+
+
+def clear_activity() -> bool:
+    """Clear all study activity and badges from memory.json.
+
+    Returns True on success, False on failure.
+    """
+    try:
+        mem = _load_memory()
+        if "study_activity" in mem:
+            mem.pop("study_activity", None)
+            _save_memory(mem)
+        return True
+    except Exception:
+        return False

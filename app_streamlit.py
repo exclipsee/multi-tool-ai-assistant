@@ -322,6 +322,26 @@ if mode == "German Tutor":
             except Exception as e:
                 st.error(f"Failed to save preferences: {e}")
 
+        # Gamification reset control
+        st.divider()
+        st.markdown("**Gamification / Streaks**")
+        st.caption("Reset your study progress and badges (irreversible)")
+        try:
+            confirm = st.checkbox("I understand — clear all study progress and badges", key="confirm_clear_streaks")
+            if confirm:
+                if st.button("Reset gamification progress", key="reset_gamify"):
+                    try:
+                        ok = __import__("streaks").clear_activity()
+                        if ok:
+                            st.success("Study progress and badges cleared.")
+                            st.experimental_rerun()
+                        else:
+                            st.error("Failed to clear study activity.")
+                    except Exception as e:
+                        st.error(f"Failed to clear: {e}")
+        except Exception:
+            pass
+
     # --- Speech (Beta) tab ---
     with tabs[3]:
         st.subheader("Speech Practice (Beta)")
