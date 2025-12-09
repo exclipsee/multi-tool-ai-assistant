@@ -19,10 +19,12 @@ except Exception:
 
 # German tutor
 try:
-    from german_assistant import assess_sentence, generate_tasks
+    import german_assistant as ga
 except Exception:
-    assess_sentence = None
-    generate_tasks = None
+    ga = None
+
+assess_sentence = getattr(ga, "assess_sentence", None)
+generate_tasks = getattr(ga, "generate_tasks", None)
 
 # Import your existing tools and config from main.py
 from main import (
@@ -78,13 +80,9 @@ if mode == "German Tutor":
         except Exception:
             pass
 
-    tabs = st.tabs(["Practice", "Progress", "Preferences", "Speech (Beta)"])
     # Conversation Tutor tab
-    try:
-        from german_assistant import generate_followup, track_mistakes
-    except Exception:
-        generate_followup = None  # type: ignore
-        track_mistakes = None  # type: ignore
+    generate_followup = getattr(ga, "generate_followup", None)
+    track_mistakes = getattr(ga, "track_mistakes", None)
 
     tabs = st.tabs(["Practice", "Conversation", "Progress", "Preferences", "Speech (Beta)"])
     # Add Drill (SRS) tab at the end
@@ -179,7 +177,7 @@ if mode == "German Tutor":
             # Follow-up cache management UI
             with st.expander("Follow-up Cache (manage)"):
                 try:
-                    mem = __import__("german_assistant")._load_memory()
+                    mem = ga._load_memory() if ga else {}
                     cache = mem.get("followup_cache", {})
                 except Exception:
                     cache = {}
@@ -202,9 +200,10 @@ if mode == "German Tutor":
                 st.write(f"Cached entries: {len(cache)} (showing {len(filtered_keys)})")
                 if st.button("Clear follow-up cache", key="clear_followup_cache"):
                     try:
-                        mem = __import__("german_assistant")._load_memory()
+                        mem = ga._load_memory() if ga else {}
                         mem["followup_cache"] = {}
-                        __import__("german_assistant")._save_memory(mem)
+                        if ga:
+                            ga._save_memory(mem)
                         st.experimental_rerun()
                     except Exception as e:
                         st.error(f"Failed to clear cache: {e}")
@@ -237,14 +236,15 @@ if mode == "German Tutor":
                     with col2:
                         if st.button("Refresh", key=f"refresh_{k}"):
                             try:
-                                mem = __import__("german_assistant")._load_memory()
+                                mem = ga._load_memory() if ga else {}
                                 mem.get("followup_cache", {}).pop(k, None)
-                                __import__("german_assistant")._save_memory(mem)
+                                if ga:
+                                    ga._save_memory(mem)
                                 assessment = v.get("assessment")
                                 if not assessment:
                                     st.warning("No assessment stored for this entry; regenerated entry will be created on next request.")
                                 else:
-                                    new = __import__("german_assistant").generate_followup(assessment, force_regen=True)
+                                    new = ga.generate_followup(assessment, force_regen=True)
                                     st.success("Refreshed and re-cached entry.")
                                     st.write(new.get("prompt"))
                             except Exception as e:
@@ -252,9 +252,10 @@ if mode == "German Tutor":
                     with col3:
                         if st.button("Delete", key=f"del_{k}"):
                             try:
-                                mem = __import__("german_assistant")._load_memory()
+                                mem = ga._load_memory() if ga else {}
                                 mem.get("followup_cache", {}).pop(k, None)
-                                __import__("german_assistant")._save_memory(mem)
+                                if ga:
+                                    ga._save_memory(mem)
                                 st.success("Deleted cache entry")
                                 st.experimental_rerun()
                             except Exception as e:

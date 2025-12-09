@@ -1,26 +1,10 @@
 from pathlib import Path
-import json
 import datetime
 from typing import Dict, Any
+from .utils import load_json, save_json
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 MEMORY_PATH = PROJECT_ROOT / "memory.json"
-
-
-def _load_memory() -> Dict[str, Any]:
-    if MEMORY_PATH.exists():
-        try:
-            return json.loads(MEMORY_PATH.read_text(encoding="utf-8"))
-        except Exception:
-            return {}
-    return {}
-
-
-def _save_memory(data: Dict[str, Any]):
-    try:
-        MEMORY_PATH.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
-    except Exception:
-        pass
 
 
 def _today_str() -> str:
@@ -49,7 +33,7 @@ def _compute_streak(days: Dict[str, Any], today: str) -> int:
 def record_visit():
     """Record that the user opened the German Tutor (a visit for today)."""
     today = _today_str()
-    mem = _load_memory()
+    mem = load_json(MEMORY_PATH, {})
     activity = mem.setdefault("study_activity", {})
     days = activity.setdefault("days", {})
     day = days.setdefault(today, {"visits": 0, "assessments": 0})
@@ -57,14 +41,14 @@ def record_visit():
     activity["days"] = days
     activity["last_active"] = today
     mem["study_activity"] = activity
-    _save_memory(mem)
+    save_json(MEMORY_PATH, mem)
     # Possibly update badges later (lazy via get_streak_info)
 
 
 def record_assessment():
     """Record that the user completed an assessment (increment counters)."""
     today = _today_str()
-    mem = _load_memory()
+    mem = load_json(MEMORY_PATH, {})
     activity = mem.setdefault("study_activity", {})
     days = activity.setdefault("days", {})
     day = days.setdefault(today, {"visits": 0, "assessments": 0})
@@ -75,12 +59,12 @@ def record_assessment():
     activity["total_assessments"] = total
     activity["last_active"] = today
     mem["study_activity"] = activity
-    _save_memory(mem)
+    save_json(MEMORY_PATH, mem)
 
 
 def get_streak_info() -> Dict[str, Any]:
     """Return a dict with streak metrics and badge names earned."""
-    mem = _load_memory()
+    mem = load_json(MEMORY_PATH, {})
     activity = mem.get("study_activity", {})
     days = activity.get("days", {})
     today = _today_str()
@@ -112,7 +96,7 @@ def get_streak_info() -> Dict[str, Any]:
     # persist any new badges
     activity["badges"] = badges
     mem["study_activity"] = activity
-    _save_memory(mem)
+    save_json(MEMORY_PATH, mem)
 
     return {
         "streak": streak,
@@ -130,10 +114,10 @@ def clear_activity() -> bool:
     Returns True on success, False on failure.
     """
     try:
-        mem = _load_memory()
+        mem = load_json(MEMORY_PATH, {})
         if "study_activity" in mem:
             mem.pop("study_activity", None)
-            _save_memory(mem)
+            save_json(MEMORY_PATH, mem)
         return True
     except Exception:
         return False
