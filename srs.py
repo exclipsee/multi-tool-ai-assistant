@@ -14,27 +14,19 @@ from __future__ import annotations
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 import datetime
-import json
 import uuid
+from .utils import load_json, save_json
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 MEMORY_PATH = PROJECT_ROOT / "memory.json"
 
 
 def _load_memory() -> Dict[str, Any]:
-    if MEMORY_PATH.exists():
-        try:
-            return json.loads(MEMORY_PATH.read_text(encoding="utf-8"))
-        except Exception:
-            return {}
-    return {}
+    return load_json(MEMORY_PATH, {})
 
 
 def _save_memory(mem: Dict[str, Any]):
-    try:
-        MEMORY_PATH.write_text(json.dumps(mem, indent=2, ensure_ascii=False), encoding="utf-8")
-    except Exception:
-        pass
+    save_json(MEMORY_PATH, mem)
 
 
 def _now() -> datetime.datetime:

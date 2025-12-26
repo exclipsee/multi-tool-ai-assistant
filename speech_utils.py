@@ -14,21 +14,22 @@ from typing import Tuple, Optional
 import io
 import os
 import tempfile
+from typing import Any
 
 try:
     from openai import OpenAI  # openai>=1.x
-except Exception:  # pragma: no cover
+except Exception:
     OpenAI = None  # type: ignore
 
 try:
-    from gtts import gTTS  # pip install gTTS
-except Exception:  # pragma: no cover
+    from gtts import gTTS
+except Exception:
     gTTS = None  # type: ignore
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 
-def _get_openai_client() -> Optional[OpenAI]:
+def _get_openai_client() -> Optional[Any]:
     if OpenAI and OPENAI_API_KEY:
         try:
             return OpenAI()
@@ -38,64 +39,57 @@ def _get_openai_client() -> Optional[OpenAI]:
 
 
 def transcribe_audio(file_bytes: bytes, filename: str = "audio.wav", language: str = "de") -> Tuple[str, str]:
-    """Transcribe spoken German audio.
-
-    Returns (text, source) where source indicates 'openai' or 'stub'.
-    """
+    """Transcribe spoken German audio. Returns (text, source)."""
     client = _get_openai_client()
-    if client:
+    if not client:
+        return "(No API key / model) – unable to transcribe.", "stub"
+
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix="_speech") as tmp:
+            tmp.write(file_bytes)
+            tmp_path = tmp.name
+        with open(tmp_path, "rb") as f:
+            for m in ("gpt-4o-mini-transcribe", "whisper-1"):
+                try:
+                    resp = client.audio.transcriptions.create(model=m, file=f, language=language)
+                    text = getattr(resp, "text", None) or getattr(resp, "data", "") or str(resp)
+                    if text:
+                        return text.strip(), "openai"
+                except Exception:
+                    continue
+        return "Transcription failed.", "error"
+    except Exception as e:
+        return f"Transcription error: {e}", "error"
+    finally:
         try:
-            # Write temp file for API call
-            with tempfile.NamedTemporaryFile(delete=False, suffix="_speech") as tmp:
-                tmp.write(file_bytes)
-                tmp_path = tmp.name
-            with open(tmp_path, "rb") as f:
-                try_models = ["gpt-4o-mini-transcribe", "whisper-1"]
-                last_err = None
-                for m in try_models:
-                    try:
-                        resp = client.audio.transcriptions.create(
-                            model=m,
-                            file=f,
-                            language=language,
-                        )
-                        text = getattr(resp, "text", None) or getattr(resp, "data", "") or str(resp)
-                        if text:
-                            return text.strip(), "openai"
-                    except Exception as e:  # pragma: no cover
-                        last_err = e
-                return f"Transcription failed: {last_err}", "error"
-        except Exception as e:  # pragma: no cover
-            return f"Transcription error: {e}", "error"
-    return "(No API key / model) – unable to transcribe.", "stub"
+            if tmp_path:
+                os.remove(tmp_path)
+        except Exception:
+            pass
 
 
 def synthesize_speech(text: str, voice: str = "alloy", language: str = "de") -> Tuple[Optional[bytes], str, str]:
-    """Generate spoken audio for German text.
-
-    Returns (audio_bytes, mime_type, source). If generation fails, audio_bytes is None.
-    """
+    """Generate spoken audio for German text. Returns (audio_bytes, mime, source)."""
     client = _get_openai_client()
     if client:
         try:
-            resp = client.audio.speech.create(
-                model="gpt-4o-mini-tts",
-                voice=voice,
-                input=text,
-            )
+            resp = client.audio.speech.create(model="gpt-4o-mini-tts", voice=voice, input=text)
             audio_bytes = resp.read() if hasattr(resp, "read") else resp
             if isinstance(audio_bytes, bytes):
                 return audio_bytes, "audio/mpeg", "openai"
-        except Exception:  # pragma: no cover
+        except Exception:
             pass
+
     if gTTS:
         try:
             tts = gTTS(text=text, lang=language)
             buf = io.BytesIO()
             tts.write_to_fp(buf)
             return buf.getvalue(), "audio/mpeg", "gtts"
-        except Exception:  # pragma: no cover
+        except Exception:
             return None, "application/octet-stream", "error"
+
     return None, "application/octet-stream", "stub"
 
 
