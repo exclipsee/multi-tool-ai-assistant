@@ -13,6 +13,7 @@ import json
 import datetime
 import os
 import hashlib
+from .utils import load_json, save_json
 
 # memory file (store attempts/preferences)
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -20,18 +21,11 @@ MEMORY_PATH = PROJECT_ROOT / "memory.json"
 PERSONA_PATH = PROJECT_ROOT / "german_persona.json"
 
 def _load_memory() -> Dict[str, Any]:
-    if MEMORY_PATH.exists():
-        try:
-            return json.loads(MEMORY_PATH.read_text(encoding="utf-8"))
-        except Exception:
-            return {}
-    return {}
+    return load_json(MEMORY_PATH, {})
+
 
 def _save_memory(data: Dict[str, Any]):
-    try:
-        MEMORY_PATH.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
-    except Exception:
-        pass
+    save_json(MEMORY_PATH, data)
 
 def _load_persona() -> Dict[str, Any]:
     # defaults
@@ -294,38 +288,50 @@ def generate_followup(assessment: Dict[str, Any], force_regen: bool = False) -> 
 
     if client:
         try:
-            model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-            resp = client.responses.create(model=model, input=f"{system_instructions}\n\nData:\n{user_payload}")
-            text = None
-            try:
-                text = getattr(resp, "output_text", None)
-            except Exception:
-                text = None
-            if not text:
+            def _extract_text_from_response(resp_obj):
                 try:
-                    out = getattr(resp, "output", None)
-                    if out and isinstance(out, list) and out:
-                        first = out[0]
+                    t = getattr(resp_obj, "output_text", None)
+                    if t:
+                        return t
+                except Exception:
+                    pass
+                try:
+                    outv = getattr(resp_obj, "output", None)
+                    if outv and isinstance(outv, list) and outv:
+                        first = outv[0]
                         if isinstance(first, dict):
                             cont = first.get("content") or first.get("data")
                             if isinstance(cont, list) and cont:
                                 for c in cont:
                                     if isinstance(c, dict) and c.get("type") == "output_text":
-                                        text = c.get("text")
-                                        break
-                                if not text:
-                                    text = str(cont[0])
+                                        return c.get("text")
+                                return str(cont[0])
                 except Exception:
-                    text = None
+                    pass
+                try:
+                    return str(resp_obj)
+                except Exception:
+                    return None
 
-            if not text:
-                text = str(resp)
+            def _persist_followup(key: str, payload: Dict[str, Any]):
+                try:
+                    mem = _load_memory()
+                    c = mem.get("followup_cache", {})
+                    c[key] = payload
+                    mem["followup_cache"] = c
+                    _save_memory(mem)
+                except Exception:
+                    pass
 
-            try:
-                j = json.loads(text.strip())
-                prompt = j.get("prompt") or j.get("instruction") or j.get("text")
-                intent = j.get("intent") or j.get("label")
-                if prompt:
+            model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+            resp = client.responses.create(model=model, input=f"{system_instructions}\n\nData:\n{user_payload}")
+            text = _extract_text_from_response(resp)
+            if text:
+                try:
+                    j = json.loads(text.strip())
+                    prompt = j.get("prompt") or j.get("instruction") or j.get("text")
+                    intent = j.get("intent") or j.get("label")
+                    if prompt:
                         out = {
                             "role": "assistant",
                             "prompt": prompt,
@@ -333,18 +339,10 @@ def generate_followup(assessment: Dict[str, Any], force_regen: bool = False) -> 
                             "assessment": base,
                             "cached_at": datetime.datetime.now().isoformat(),
                         }
-                        # persist
-                        try:
-                            mem = _load_memory()
-                            c = mem.get("followup_cache", {})
-                            c[cache_key] = out
-                            mem["followup_cache"] = c
-                            _save_memory(mem)
-                        except Exception:
-                            pass
+                        _persist_followup(cache_key, out)
                         return out
-            except Exception:
-                pass
+                except Exception:
+                    pass
         except Exception:
             pass
 
@@ -384,11 +382,7 @@ def generate_followup(assessment: Dict[str, Any], force_regen: bool = False) -> 
         "cached_at": datetime.datetime.now().isoformat(),
     }
     try:
-        mem = _load_memory()
-        c = mem.get("followup_cache", {})
-        c[cache_key] = out
-        mem["followup_cache"] = c
-        _save_memory(mem)
+        _persist_followup(cache_key, out)
     except Exception:
         pass
     return out
@@ -400,13 +394,7 @@ def track_mistakes(assessment: Dict[str, Any]):
     This helps the Conversational Tutor adapt over time.
     """
     try:
-        mem_path = PROJECT_ROOT / "memory.json"
-        mem = {}
-        if mem_path.exists():
-            try:
-                mem = json.loads(mem_path.read_text(encoding="utf-8"))
-            except Exception:
-                mem = {}
+        mem = load_json(MEMORY_PATH, {})
         mistakes = mem.get("german_mistakes", {})
         for e in assessment.get("errors", []):
             if isinstance(e, dict):
@@ -415,10 +403,7 @@ def track_mistakes(assessment: Dict[str, Any]):
                 key = str(e)
             mistakes[key] = mistakes.get(key, 0) + 1
         mem["german_mistakes"] = mistakes
-        try:
-            mem_path.write_text(json.dumps(mem, indent=2, ensure_ascii=False), encoding="utf-8")
-        except Exception:
-            pass
+        save_json(MEMORY_PATH, mem)
     except Exception:
         pass
 
