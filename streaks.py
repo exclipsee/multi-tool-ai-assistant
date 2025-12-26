@@ -1,10 +1,12 @@
 from pathlib import Path
 import datetime
 from typing import Dict, Any
+import logging
 from .utils import load_json, save_json
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 MEMORY_PATH = PROJECT_ROOT / "memory.json"
+logger = logging.getLogger(__name__)
 
 
 def _today_str() -> str:
@@ -116,8 +118,18 @@ def clear_activity() -> bool:
     try:
         mem = load_json(MEMORY_PATH, {})
         if "study_activity" in mem:
+            # create a timestamped backup before clearing so users can recover
+            try:
+                ts = datetime.datetime.now().isoformat()
+                backup_key = f"study_activity_backup_{ts}"
+                mem[backup_key] = mem.get("study_activity")
+            except Exception:
+                # backup is best-effort; continue even if backup fails
+                logger.exception("Failed to create study_activity backup")
+
             mem.pop("study_activity", None)
             save_json(MEMORY_PATH, mem)
         return True
     except Exception:
+        logger.exception("Failed to clear study_activity from memory.json")
         return False
