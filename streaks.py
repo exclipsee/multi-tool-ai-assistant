@@ -17,8 +17,6 @@ def _compute_streak(days: Dict[str, Any], today: str) -> int:
     # days: mapping date->data; compute consecutive days up to today
     if not days:
         return 0
-    # collect dates that have any activity
-    active_dates = sorted([d for d in days.keys()])
     # starting from today, walk backwards
     streak = 0
     cur = datetime.date.fromisoformat(today)
