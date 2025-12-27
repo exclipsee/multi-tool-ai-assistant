@@ -85,6 +85,16 @@ if mode == "German Tutor":
         except Exception:
             pass
 
+    # Load learner_level from memory if present
+    try:
+        if MEMORY_PATH.exists():
+            mem_j = json.loads(MEMORY_PATH.read_text(encoding="utf-8"))
+        else:
+            mem_j = {}
+        learner_level = mem_j.get("learner_level") or persona.get("default_level", "A1")
+    except Exception:
+        learner_level = persona.get("default_level", "A1")
+
     # Conversation Tutor tab
     generate_followup = getattr(ga, "generate_followup", None)
     track_mistakes = getattr(ga, "track_mistakes", None)
@@ -453,6 +463,38 @@ if mode == "German Tutor":
                 mem_path = Path(__file__).parent / "memory.json"
                 # Show counts
                 due = get_due_cards()
+
+                # Prioritize due cards based on stored learner_level so cards
+                # closest to the learner's level appear first.
+                try:
+                    LEVEL_ORDER = ["A1", "A2", "B1", "B2", "C1", "C2"]
+
+                    def _lvl_idx(l):
+                        try:
+                            return LEVEL_ORDER.index(l)
+                        except Exception:
+                            return -99
+
+                    try:
+                        mem_j = json.loads(mem_path.read_text(encoding="utf-8")) if mem_path.exists() else {}
+                        ll = mem_j.get("learner_level") or persona.get("default_level", "A1")
+                    except Exception:
+                        ll = persona.get("default_level", "A1")
+
+                    learner_idx = _lvl_idx(ll)
+
+                    def sort_key(card):
+                        ci = _lvl_idx(card.get("level"))
+                        # distance: prefer unknown (ci==-99) after known; use abs diff
+                        dist = abs(ci - learner_idx) if ci != -99 else 999
+                        # secondary by next_review timestamp
+                        nr = card.get("next_review") or ""
+                        return (dist, nr)
+
+                    due.sort(key=sort_key)
+                except Exception:
+                    pass
+
                 st.markdown(f"**Due cards:** {len(due)}")
 
                 # Import recent attempts button
