@@ -1,7 +1,4 @@
 import streamlit as st
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
-from langgraph.prebuilt import create_react_agent
 import json
 from pathlib import Path
 import pandas as pd
@@ -31,19 +28,8 @@ except Exception:
 assess_sentence = getattr(ga, "assess_sentence", None)
 generate_tasks = getattr(ga, "generate_tasks", None)
 
-# Import your existing tools and config from main.py
-from main import (
-    OPENAI_MODEL, ASSISTANT_SYSTEM_PROMPT,
-    get_weather, calculator, say_hello, system_info, get_time, get_time_in,
-    get_news, wiki_search, search_web, fetch_url, fetch_rss,
-    translate_text, summarize_text, slugify,
-    set_reminder, check_reminders, add_todo, list_todos, complete_todo,
-    unit_convert, currency_convert,
-    list_files, read_text_file, write_text_file, csv_to_json, json_to_csv,
-    zip_paths, unzip_to, sha256_string, sha256_file, b64_encode, b64_decode,
-    make_qr, pdf_to_text, md_to_html, take_screenshot,
-    regex_replace, password_generate, copy_to_clipboard, paste_from_clipboard,
-)
+# Only import what's used by the UI to reduce noise
+from main import check_reminders
 
 st.set_page_config(page_title="Intelli CLI (UI)", page_icon="🤖", layout="centered")
 st.title("🤖 Intelli CLI (UI)")
@@ -58,13 +44,10 @@ if mode == "German Tutor":
         st.error("`german_assistant` not available. Make sure the file exists and is importable.")
         st.stop()
 
-    # Record a visit for streaks/gamification
+    # Record a visit for streaks/gamification (best-effort)
     try:
         from streaks import record_visit
-        try:
-            record_visit()
-        except Exception:
-            pass
+        record_visit()
     except Exception:
         pass
 
@@ -104,10 +87,7 @@ if mode == "German Tutor":
     try:
         from srs import get_due_cards, import_attempts, schedule_card, add_card
     except Exception:
-        get_due_cards = None  # type: ignore
-        import_attempts = None  # type: ignore
-        schedule_card = None  # type: ignore
-        add_card = None  # type: ignore
+        get_due_cards = import_attempts = schedule_card = add_card = None
 
     # --- Practice tab ---
     with tabs[0]:
