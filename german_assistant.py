@@ -159,9 +159,9 @@ def assess_sentence(sentence: str, level: Optional[str] = None, persona: Optiona
         "strictness": p.get("strictness") if isinstance(p, dict) else None,
     }
 
-    # Persist attempt if requested
-    try:
-        if save_attempt:
+    # Persist attempt if requested (best-effort)
+    if save_attempt:
+        try:
             mem = _load_memory()
             attempts = mem.get("german_attempts", [])
             attempts.append({
@@ -174,17 +174,14 @@ def assess_sentence(sentence: str, level: Optional[str] = None, persona: Optiona
             })
             mem["german_attempts"] = attempts
             _save_memory(mem)
-            try:
-                # record for streaks/gamification if module available
-                try:
-                    from streaks import record_assessment
-                    record_assessment()
-                except Exception:
-                    pass
-            except Exception:
-                pass
-    except Exception:
-        pass
+        except Exception:
+            pass
+        # record for streaks/gamification if available (do not fail on import)
+        try:
+            from streaks import record_assessment
+            record_assessment()
+        except Exception:
+            pass
 
     return result
 
