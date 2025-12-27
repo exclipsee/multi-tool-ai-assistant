@@ -26,15 +26,13 @@ try:
 except Exception:
     gTTS = None  # type: ignore
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-
 def _get_openai_client() -> Optional[Any]:
-    if OpenAI and OPENAI_API_KEY:
-        try:
+    # Create an OpenAI client if the package and API key are available
+    try:
+        if OpenAI and os.getenv("OPENAI_API_KEY"):
             return OpenAI()
-        except Exception:
-            return None
+    except Exception:
+        pass
     return None
 
 
