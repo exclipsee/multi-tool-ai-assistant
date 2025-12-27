@@ -19,14 +19,43 @@ import textwrap
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple, List, Iterable
 from dotenv import load_dotenv
-from termcolor import colored
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
-from langchain.tools import tool
-from langgraph.prebuilt import create_react_agent
-from deep_translator import DeeplTranslator
-from rich.live import Live
-from rich.table import Table
+# Small/optional UI/LLM libraries — import if available, otherwise provide safe fallbacks
+try:
+    from termcolor import colored
+except Exception:
+    def colored(s, *_):
+        return s
+
+try:
+    from langchain_openai import ChatOpenAI
+    from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+    from langchain.tools import tool
+except Exception:
+    ChatOpenAI = None
+    HumanMessage = AIMessage = SystemMessage = None
+    # fallback no-op decorator for `@tool` when langchain.tools is unavailable
+    def tool(func=None, *args, **kwargs):
+        if func is None:
+            def _wrap(f):
+                return f
+            return _wrap
+        return func
+
+try:
+    from langgraph.prebuilt import create_react_agent
+except Exception:
+    create_react_agent = None
+
+try:
+    from deep_translator import DeeplTranslator
+except Exception:
+    DeeplTranslator = None
+
+try:
+    from rich.live import Live
+    from rich.table import Table
+except Exception:
+    Live = Table = None
 # German assistant integration
 try:
     from german_assistant import assess_sentence, generate_tasks
