@@ -1,8 +1,10 @@
 """Simple SM-2 Spaced Repetition helper.
 
 Provides basic card model stored inside `memory.json` under key `srs_cards`.
+Cards are now level-aware (key `level`) and scheduling is biased by the
+learner's current `learner_level` stored in `memory.json`.
 Functions:
-- add_card(front, back)
+- add_card(front, back, level=None)
 - import_attempts(attempts_list)
 - get_due_cards(now)
 - schedule_card(card_id, quality)
@@ -46,7 +48,24 @@ def _mk_card(front: str, back: str) -> Dict[str, Any]:
     }
 
 
-def add_card(front: str, back: str) -> Dict[str, Any]:
+LEVEL_ORDER = ["A1", "A2", "B1", "B2", "C1", "C2"]
+
+
+def _level_index(lvl: Optional[str]) -> int:
+    if not lvl:
+        return 0
+    try:
+        return LEVEL_ORDER.index(lvl)
+    except Exception:
+        return 0
+
+
+def _get_learner_level() -> Optional[str]:
+    mem = _load_memory()
+    return mem.get("learner_level")
+
+
+def add_card(front: str, back: str, level: Optional[str] = None) -> Dict[str, Any]:
     mem = _load_memory()
     cards = mem.get("srs_cards", [])
     # avoid exact duplicates by front text
@@ -54,6 +73,13 @@ def add_card(front: str, back: str) -> Dict[str, Any]:
         if c.get("front") == front:
             return c
     card = _mk_card(front, back)
+    # attach level: prefer provided level, else use learner_level from memory
+    if level:
+        card["level"] = level
+    else:
+        ll = _get_learner_level()
+        if ll:
+            card["level"] = ll
     cards.append(card)
     mem["srs_cards"] = cards
     _save_memory(mem)
@@ -68,6 +94,7 @@ def import_attempts(attempts: List[Dict[str, Any]]) -> int:
     cards = mem.get("srs_cards", [])
     fronts = {c.get("front"): c for c in cards}
     added = 0
+    learner_level = _get_learner_level()
     for a in attempts:
         front = a.get("original") or a.get("sentence")
         back = a.get("correction") or ""
@@ -76,6 +103,8 @@ def import_attempts(attempts: List[Dict[str, Any]]) -> int:
         if front in fronts:
             continue
         card = _mk_card(front, back)
+        if learner_level:
+            card["level"] = learner_level
         cards.append(card)
         added += 1
     if added:
@@ -130,6 +159,19 @@ def schedule_card(card_id: str, quality: int) -> Optional[Dict[str, Any]]:
 
     q = max(0, min(5, int(quality)))
 
+    # Adjust scheduling bias based on learner level vs card level
+    learner = _get_learner_level()
+    card_level = card.get("level")
+    lvl_diff = _level_index(card_level) - _level_index(learner)
+    # If card is above learner level, make it slightly harder (reduce efactor)
+    # If card is below learner level, make it slightly easier.
+    level_ef_adjust = 1.0
+    if lvl_diff > 0:
+        # for each level above, reduce effective efactor multiplier
+        level_ef_adjust = max(0.7, 1.0 - 0.15 * lvl_diff)
+    elif lvl_diff < 0:
+        level_ef_adjust = 1.0 + (0.05 * abs(lvl_diff))
+
     # SM-2 core
     if q < 3:
         card["repetitions"] = 0
@@ -138,6 +180,8 @@ def schedule_card(card_id: str, quality: int) -> Optional[Dict[str, Any]]:
         card["next_review"] = (_now() + datetime.timedelta(days=1)).isoformat()
     else:
         ef = float(card.get("efactor", 2.5))
+        # apply level adjustment to efactor for interval calculation
+        ef = max(1.3, ef * level_ef_adjust)
         reps = int(card.get("repetitions", 0)) + 1
         if reps == 1:
             interval = 1
