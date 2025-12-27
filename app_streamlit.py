@@ -17,6 +17,11 @@ try:
 except Exception:
     audio_recorder = None  # type: ignore
 
+try:
+    import placement_test as pt
+except Exception:
+    pt = None
+
 # German tutor
 try:
     import german_assistant as ga
@@ -312,6 +317,37 @@ if mode == "German Tutor":
     # --- Preferences tab ---
     with tabs[2]:
         st.subheader("German Tutor Preferences")
+        # Placement test quick controls
+        try:
+            if pt:
+                st.markdown("**Placement Test**")
+                if st.button("Run Placement Test"):
+                    st.session_state["placement_test"] = pt.generate_test(num_per_level=2)
+
+                test_items = st.session_state.get("placement_test")
+                if test_items:
+                    st.write("Answer how well you understand each sentence:")
+                    choices = ["Understand well", "Partly", "Don't understand"]
+                    mapping = {"Understand well": 1.0, "Partly": 0.5, "Don't understand": 0.0}
+                    responses = []
+                    for i, it in enumerate(test_items):
+                        key = f"pt_{i}"
+                        sel = st.radio(it.get("sentence"), choices, key=key)
+                        responses.append(mapping.get(sel, 0.0))
+
+                    if st.button("Submit placement test"):
+                        result = pt.grade_test(responses, test_items)
+                        recommended = result.get("recommended")
+                        if recommended:
+                            ok = pt.store_level(recommended)
+                            if ok:
+                                st.success(f"Recommended level: {recommended} (saved)")
+                            else:
+                                st.info(f"Recommended level: {recommended} (failed to save)")
+                        else:
+                            st.info("Could not determine a recommended level. Try again.")
+        except Exception:
+            pass
         new_level = st.selectbox("Default level", ["A1", "A2", "B1", "B2"], index=["A1","A2","B1","B2"].index(persona.get("default_level","A1")))
         strict = st.radio("Correction strictness", ["gentle", "balanced", "strict"], index=["gentle","balanced","strict"].index(persona.get("strictness","balanced")))
         save_attempts = st.checkbox("Save attempts to memory.json", value=bool(persona.get("save_attempts", True)))
