@@ -13,7 +13,7 @@ import json
 import datetime
 import os
 import hashlib
-from .utils import load_json, save_json
+from utils import load_json, save_json
 
 # memory file (store attempts/preferences)
 PROJECT_ROOT = Path(__file__).resolve().parent

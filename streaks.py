@@ -2,7 +2,7 @@ from pathlib import Path
 import datetime
 from typing import Dict, Any
 import logging
-from .utils import load_json, save_json
+from utils import load_json, save_json
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 MEMORY_PATH = PROJECT_ROOT / "memory.json"

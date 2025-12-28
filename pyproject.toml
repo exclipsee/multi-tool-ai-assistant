@@ -1,12 +1,14 @@
 [project]
-name = "project1"
+name = "german-tutor"
 version = "0.1.0"
-description = "Add your description here"
+description = "A focused German learning assistant"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 dependencies = [
-    "langchain>=0.3.27",
-    "langchain-openai>=0.3.34",
-    "langgraph>=0.6.8",
-    "python-dotenv>=1.1.1",
+    "streamlit>=1.28.0",
+    "pandas>=2.2",
+    "openai>=1.30.0",
+    "python-dotenv>=1.0",
+    "gTTS>=2.5",
+    "streamlit-audio-recorder>=0.1",
 ]

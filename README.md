@@ -1,136 +1,146 @@
-# 🤖 Intelli CLI Assistant 3.2 – Many‑Tools Edition
+# 🇩🇪 German Tutor
 
-A powerful, local, multi‑tool AI agent for everyday use. Built with Python, LangChain, and LangGraph. It chats, calls tools, and automates tasks from your terminal (CLI) or an optional web UI.
+A focused German learning assistant to help you practice and demonstrate your progress. Built with Python and Streamlit.
 
-Highlights
-- Safe math (AST) calculator
-- Timezone‑aware time lookups (e.g., Tokyo)
-- Web search and URL fetch/summarize
-- News, weather, RSS
-- Notes, reminders, todos (persistent)
-- Unit and currency conversion
-- File ops, CSV/JSON, ZIP, hashes, Base64
-- PDF→text, Markdown→HTML, QR codes, screenshots
-- Clipboard, regex transforms, password generator
-- Caching, atomic saves, Windows‑safe disk info
+## ✨ Features
 
----
+- **Sentence Assessment**: Get instant feedback on your German sentences with scores, corrections, and explanations
+- **Task Generation**: Generate practice exercises (fill-in-the-blank, multiple choice, translation, etc.)
+- **Conversational Tutor**: Interactive practice with follow-up prompts based on your mistakes
+- **Spaced Repetition (SRS)**: Import your mistakes as flashcards and review them using the SM-2 algorithm
+- **Study Streaks & Gamification**: Track your daily practice with streaks and badges
+- **Speech Practice**: Transcribe German audio and generate text-to-speech (requires OpenAI API key)
+- **Placement Test**: Determine your current German level (A1-C2)
+- **Progress Tracking**: Visualize your improvement over time
+
+## 🚀 Quick Start
+
+1. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. **Set up environment (optional, for speech features):**
+   Create a `.env` file:
+   ```
+   OPENAI_API_KEY=your_key_here
+   OPENAI_MODEL=gpt-4o-mini
+   ```
+
+3. **Run the app:**
+   ```bash
+   streamlit run app_streamlit.py
+   ```
+
+4. **Start learning!**
+   - Open the app in your browser
+   - Go to the "Practice" tab to assess sentences
+   - Use "Conversation" for interactive practice
+   - Check "Progress" to see your improvement
+
+## 📚 Project Structure
+
+```
+├── app_streamlit.py          # Main Streamlit UI
+├── german_assistant.py       # Core assessment & task generation
+├── srs.py                    # Spaced Repetition System (SM-2)
+├── streaks.py                # Gamification & streak tracking
+├── placement_test.py         # Level placement test
+├── speech_utils.py           # Speech transcription & TTS
+├── utils.py                  # JSON utilities
+├── data/
+│   └── german_lessons.json   # Sample lesson data
+├── memory.json               # User data (attempts, cards, streaks)
+└── german_persona.json       # Tutor preferences
+```
+
+## 🎯 Usage
+
+### Practice Tab
+Enter a German sentence and get:
+- A score (0-100)
+- Suggested corrections
+- Grammar explanations
+- Practice tasks
+
+### Conversation Tab
+Have a conversation in German:
+- Get feedback on each sentence
+- Receive follow-up prompts based on your mistakes
+- Track common error patterns
+
+### Progress Tab
+View your learning history:
+- Recent attempts with scores
+- Progress chart over time
+- Average score metrics
+
+### Speech Tab (Beta)
+- Upload audio files (wav/mp3/m4a/ogg) for transcription
+- Record directly from microphone (if `streamlit-audio-recorder` installed)
+- Generate text-to-speech for any German text
+
+### Drill (SRS) Tab
+- Review flashcards created from your mistakes
+- Rate your recall (0-5)
+- Cards are scheduled using spaced repetition
+- Import recent attempts as new cards
+
+### Preferences Tab
+- Set your default level (A1-A2-B1-B2)
+- Adjust correction strictness
+- Run placement test
+- Manage gamification data
 
 ## 🧩 Tech Stack
 
-- Python 3.10+
-- LangChain + LangGraph
-- rich, psutil, requests, python‑dotenv, termcolor
-- Optional libs for extra tools (see below)
+- **Python 3.10+**
+- **Streamlit** - Web UI
+- **Pandas** - Data visualization
+- **OpenAI API** (optional) - Speech features and follow-up generation
+- **gTTS** (optional) - Text-to-speech fallback
 
-APIs
-- OpenAI (chat model via langchain_openai)
-- OpenWeatherMap (weather)
-- NewsAPI (headlines)
-- Wikipedia REST (summaries)
-- DuckDuckGo Instant Answer (search)
-- exchangerate.host (currency)
+## 📦 Dependencies
 
----
+Core:
+- `streamlit` - Web framework
+- `pandas` - Data analysis
 
-## 🧠 Major Capabilities (by category)
+Optional (for enhanced features):
+- `openai` - Speech transcription & TTS
+- `gTTS` - Text-to-speech fallback
+- `streamlit-audio-recorder` - Microphone recording
+- `python-dotenv` - Environment variables
 
-- Info & Web: get_weather, get_news, wiki_search, search_web, fetch_url, fetch_rss
-- Time: get_time, get_time_in (timezone‑aware for cities/IANA zones)
-- Memory & Tasks: save_note, recall_notes, set_reminder, check_reminders, add_todo, list_todos, complete_todo
-- Math & Conversion: calculator (safe AST), unit_convert, currency_convert
-- Files & Data: list_files, read_text_file, write_text_file, csv_to_json, json_to_csv, zip_paths, unzip_to
-- Security & Encoding: sha256_string, sha256_file, b64_encode, b64_decode
-- Media & Docs: pdf_to_text, md_to_html, make_qr, take_screenshot
-- Text Utils: summarize_text, slugify, regex_replace, password_generate, copy_to_clipboard, paste_from_clipboard
-- System: system_info, caching, atomic JSON saves, Windows‑safe disk detection
+## 💡 How It Works
 
----
+1. **Assessment**: Uses heuristics to check capitalization, verb position, articles, and punctuation
+2. **Task Generation**: Creates exercises based on your sentence structure
+3. **SRS**: Implements SM-2 algorithm for spaced repetition
+4. **Streaks**: Tracks daily visits and assessments to build habits
+5. **Follow-ups**: Uses OpenAI (if available) or heuristics to generate practice prompts
 
-## 🇩🇪 German Tutor (new)
+## 🔧 Configuration
 
-This repository now includes a lightweight German learning assistant to help you practice and demonstrate your progress to potential employers.
+Edit `german_persona.json` to customize:
+- Default level (A1, A2, B1, B2)
+- Correction strictness (gentle, balanced, strict)
+- Whether to save attempts
 
-- Module: `german_assistant.py` — provides `assess_sentence(sentence, level)` and `generate_tasks(sentence, level, ...)`.
-- Sample lessons: `data/german_lessons.json` (A1/A2 examples) used by the Streamlit UI sidebar.
-- Streamlit UI: `app_streamlit.py` has a "German Tutor" mode in the sidebar for quick assessments and task generation.
-- CLI: use the `/german <sentence>` slash command inside the interactive CLI (`python main.py`) to get a score, suggested correction, explanations, and example exercises.
+## 📊 Data Storage
 
-Usage examples
-- Streamlit (choose "German Tutor" in sidebar):
-
-```powershell
-pip install streamlit
-streamlit run .\app_streamlit.py
-```
-
-### 🗣 Speech Integration (Beta)
-
-New: `speech_utils.py` + Speech tab in the German Tutor UI.
-
-Provided features:
-- Upload German audio (wav/mp3/m4a/ogg) and transcribe (OpenAI Whisper if `OPENAI_API_KEY` set; stub otherwise).
-- Text-to-Speech generation of any German sentence (OpenAI TTS preferred; falls back to `gTTS`).
-- Quick transfer: After transcription you can reuse the text for assessment/tasks.
-
-Requirements:
-- Set `OPENAI_API_KEY` for high quality transcription + neural TTS.
-- Installs `gTTS` as fallback.
-
-Roadmap ideas:
-- Live microphone capture (streamlit-webrtc).
-- Offline local whisper (`faster-whisper`).
-- Pronunciation / phoneme scoring.
-- Batch drilling from lesson sentences.
-
-Live microphone capture (Quick setup)
-- The Speech tab now supports live microphone recording using an optional component. Install the recorder and run Streamlit:
-
-```powershell
-pip install -r requirements.txt
-streamlit run .\app_streamlit.py
-```
-
-### 📈 Study Streaks & Gamification
-
-We've added a lightweight gamification system to help you build a habit:
-
-- What it records: daily "visits" to the `German Tutor` mode and completed assessments. Data is stored in `memory.json` under the `study_activity` key.
-- What you see: the Streamlit sidebar displays your current streak (consecutive active days), total assessments, and earned badges (e.g. "First Activity", "3-Day Streak", "7-Day Streak", "10 Assessments").
-- Automatic tracking: visits are recorded when you open the `German Tutor` mode; assessments recorded via the UI call are counted automatically.
-- SRS suggestion: the sidebar also shows a quick suggestion if you have SRS cards due to review today.
-
-How to use
-- Run the app and open `German Tutor` — your visit will be recorded automatically.
-- Do assessments (Practice tab or Conversation mode) to earn badges and grow your streak.
-- To inspect stored data manually, open `memory.json` and look for the `study_activity` object.
-
-Why: small rewards and visible progress help with retention — this provides a friendly nudge to practice daily.
-
-- If you prefer the component approach, install: `pip install streamlit-audio-recorder` (optional). If it's not installed the UI falls back to file upload.
-
-## 💸 Costs & Privacy
-
-- OpenAI API is paid per token. Use models you have access to.
-- NewsAPI/OpenWeatherMap may have free tiers with limits.
-- Local tools (files, conversions, QR, PDF, etc.) are free and run locally.
-- Prompts sent to OpenAI when the agent calls the model—avoid secrets.
-
----
+All data is stored locally in `memory.json`:
+- `german_attempts` - Your practice history
+- `srs_cards` - Flashcards for spaced repetition
+- `study_activity` - Streaks and badges
+- `learner_level` - Your current level
+- `german_mistakes` - Common error patterns
 
 ## 🛠️ Troubleshooting
 
-- Pylance “Import ‘main’ could not be resolved”: adjust imports to “from project1.main import …” or move UI file into project1.
-- Timezone error: install tzdata (pip install tzdata).
-- RSS error: install feedparser.
-- PDF extraction: install pdfminer.six.
-- Markdown conversion: install markdown.
-- Clipboard: install pyperclip.
-- QR codes: install qrcode[pil].
-- Screenshots: install mss.
-- Colors on Windows: colorama is included; ensure the venv interpreter is selected in VS Code.
-
----
+- **Import errors**: Make sure all files are in the same directory
+- **Speech not working**: Set `OPENAI_API_KEY` in `.env` file
+- **Audio recorder not working**: Install `streamlit-audio-recorder` or use file upload instead
 
 ## 📜 License
 

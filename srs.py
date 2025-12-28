@@ -17,7 +17,7 @@ from typing import List, Dict, Any, Optional
 from pathlib import Path
 import datetime
 import uuid
-from .utils import load_json, save_json
+from utils import load_json, save_json
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 MEMORY_PATH = PROJECT_ROOT / "memory.json"

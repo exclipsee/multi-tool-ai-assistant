@@ -1,6 +1,6 @@
 from pathlib import Path
 import random
-from .utils import load_json, save_json
+from utils import load_json, save_json
 import os
 import json
 try:
